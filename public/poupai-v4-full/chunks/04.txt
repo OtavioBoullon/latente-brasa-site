@@ -1,0 +1,131 @@
+emplate-columns:1fr}.strategy-step{grid-template-columns:30px 1fr}.strategy-step .rule{grid-column:2;text-align:left}.source-proof{grid-template-columns:1fr}.source-proof .source-open{grid-column:1}}
+
+</style>
+
+<style id="poupai-mobile-final">
+/* ===== POUPAI V4 — RESPONSIVIDADE FINAL SEM REMOVER CONTEÚDO ===== */
+html,body{max-width:100%;overflow-x:hidden}
+img,svg,video{max-width:100%}
+@media (max-width:768px){
+  body{font-size:15px;-webkit-text-size-adjust:100%}
+  .wrap{width:100%;max-width:100%;padding-left:16px;padding-right:16px}
+  .demo-bar{font-size:10px;line-height:1.4;padding:8px 12px}
+  header{position:sticky;top:0}
+  .nav{height:66px;gap:10px}
+  .brand img{width:120px!important;max-height:42px;object-fit:contain}
+  .navlinks{display:none!important}
+  .nav>.btn{min-height:42px;padding:10px 12px;font-size:11px;white-space:nowrap}
+  .btn,.btn-mini,.method,.evidence-btn,.source-open,.copy-script,.feedback-form button[type="submit"]{min-height:44px}
+
+  .hero{padding:38px 0 30px}
+  .hero-grid{grid-template-columns:1fr!important;gap:28px!important}
+  .eyebrow{font-size:10px;line-height:1.35;padding:7px 10px}
+  h1{font-size:clamp(36px,10.2vw,46px)!important;line-height:1.02!important;letter-spacing:-2px!important;margin:16px 0 16px!important}
+  .hero-copy,.hero p{font-size:16px!important;line-height:1.55!important;margin-bottom:22px!important}
+  .hero-actions{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
+  .hero-actions .btn{width:100%!important;min-height:48px}
+  .trust-inline,.mini-trust{gap:9px 13px!important;margin-top:16px!important;font-size:10px!important}
+  .hero-panel,.hero-card{padding:16px!important;border-radius:22px!important;max-width:none!important;width:100%}
+  .mini-bill,.bill{padding:16px!important;border-radius:17px!important}
+  .bill-head,.bill-top{gap:10px}
+  .bill-price,.price{font-size:25px!important}
+  .hero-result,.alert-row{padding:12px!important;gap:10px!important}
+  .hero-result b,.save{font-size:21px!important}
+
+  .proofbar,.stats{padding:8px 0 40px!important}
+  .proof-grid,.stats-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}
+  .proof,.stat{padding:15px!important;border-radius:15px!important}
+  .proof strong,.stat strong{font-size:19px!important}
+  .proof span,.stat span{font-size:10px!important;line-height:1.35}
+
+  .section{padding:50px 0!important}
+  .section-title{margin-bottom:27px!important;padding:0 2px}
+  .section-title h2{font-size:31px!important;letter-spacing:-1.25px!important;line-height:1.08!important}
+  .section-title p{font-size:13px!important;line-height:1.55!important}
+  .section-title .kicker{font-size:9px!important}
+  .steps,.security-grid,.result-grid,.report-grid,.input-grid{grid-template-columns:1fr!important}
+  .steps{gap:11px!important}
+  .step{padding:20px!important;border-radius:18px!important}
+  .security-card{padding:23px!important;border-radius:22px!important}
+  .security-card h3,.privacy-copy h3{font-size:25px!important}
+
+  .analyzer-shell{padding:4px!important;border-radius:25px!important}
+  .analyzer{border-radius:21px!important}
+  .analyzer-head{padding:15px 15px!important;gap:10px!important}
+  .analyzer-head h3{font-size:16px!important}
+  .secure-pill{font-size:9px!important;padding:6px 8px!important}
+  .analyzer-body{padding:14px!important}
+  .drop{padding:30px 14px!important;border-radius:17px!important}
+  .upload-icon{width:54px!important;height:54px!important;border-radius:16px!important}
+  .drop h4{font-size:19px!important}
+  .drop p{font-size:12px!important}
+  .cep-box{padding:16px!important;border-radius:17px!important}
+  input,select,textarea,.field input,.feedback-form input,.feedback-form textarea,.feedback-form select,.cep-box input{font-size:16px!important}
+  .file-picked{flex-wrap:wrap}
+  .file-picked .btn{width:100%;margin-top:5px}
+  .chips,.analysis-list{grid-template-columns:1fr 1fr!important;gap:7px!important}
+  .chip,.analysis-chip{font-size:9px!important}
+
+  .extracted{padding:15px!important;border-radius:17px!important}
+  .extracted-head{align-items:flex-start!important;gap:9px!important}
+  .extracted-head h4{font-size:16px!important}
+  .extract-grid{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .extract{padding:10px!important}
+  .extract small{font-size:8px!important}.extract b{font-size:12px!important}
+  .result-grid{gap:11px!important}
+  .score-card,.saving-card{padding:18px!important;border-radius:18px!important}
+  .score-top{gap:12px!important;align-items:center!important}
+  .score-ring{width:92px!important;height:92px!important;flex:0 0 92px!important}
+  .score-ring strong{font-size:25px!important}
+  .score-copy h4{font-size:18px!important}
+  .metric{grid-template-columns:92px 1fr 38px!important;font-size:9px!important}
+  .big-save{font-size:36px!important;letter-spacing:-1.3px!important}
+  .saving-compare{grid-template-columns:1fr 1fr!important;gap:7px!important}
+  .saving-mini{padding:10px!important}.saving-mini b{font-size:13px!important}
+  .compare-visual{padding:15px!important}
+  .barrow{grid-template-columns:62px 1fr 70px!important;gap:7px!important;font-size:10px!important}
+  .opps{grid-template-columns:1fr!important;gap:9px!important}
+  .opp{padding:15px!important}
+  .locked{min-height:390px!important}
+  .locked-overlay{padding:20px 14px!important}
+  .unlock-box h4{font-size:20px!important}
+  .unlock-features{gap:5px!important}
+  .unlock-features span{font-size:8px!important}
+  .unlock-price{font-size:27px!important}
+  .unlock-box .btn{width:100%;min-height:48px}
+
+  /* relatório: manter TODAS as informações */
+  .report-pro{border-radius:20px!important}
+  .report-cover{padding:20px!important}
+  .report-cover-top{flex-direction:column!important;gap:13px!important}
+  .report-cover h3{font-size:25px!important}
+  .report-cover p{font-size:10px!important;line-height:1.55!important}
+  .report-id{text-align:left!important}
+  .report-cover-kpis{grid-template-columns:1fr 1fr!important;gap:7px!important;margin-top:18px!important}
+  .report-cover-kpi{padding:11px!important;border-radius:12px!important}
+  .report-cover-kpi strong{font-size:17px!important}
+  .report-toolbar{flex-direction:column!important;align-items:stretch!important;padding:12px!important}
+  .report-toolbar-actions{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important}
+  .btn-mini{width:100%;padding:9px!important}
+  .report-body{padding:9px!important}
+  .report-section{padding:15px!important;margin-bottom:10px!important;border-radius:16px!important}
+  .report-section-head{gap:8px!important;margin-bottom:13px!important;flex-direction:column!important}
+  .report-section h4{font-size:18px!important}
+  .report-section-head p{font-size:9px!important;line-height:1.55!important}
+  .verified-pill{align-self:flex-start;font-size:8px!important}
+  .executive-grid,.bill-anatomy,.benchmark-hero,.projection-grid,.negotiation-grid,.methodology,.trace-grid,.whatif,.strategy-grid,.proposal-grid,.confidence-grid,.cases-layout{grid-template-columns:1fr!important}
+  .executive-side{grid-template-columns:1fr 1fr!important}
+  .verdict{padding:15px!important}.verdict h5{font-size:20px!important}
+  .mini-kpi{padding:11px!important}.mini-kpi strong{font-size:15px!important}
+
+  /* em vez de esconder colunas: rolagem horizontal */
+  .bill-lines{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  .bill-line{min-width:520px!important;grid-template-columns:1.5fr .8fr .7fr!important}
+  .bill-line span:nth-child(3){display:block!important}
+  .projection-table{overflow-x:auto!important;-webkit-overflow-scrolling:touch;display:block!important}
+  .proj-row{min-width:560px!important;grid-template-columns:1fr 1fr 1fr 1fr!important}
+  .proj-row span:nth-child(3),.proj-row span:nth-child(4){display:block!important}
+  .compare-pro{min-width:720px!important;font-size:9px!important}
+  .compare-pro th,.compare-pro td{padding:8px 6px!important}
+  .compare-table{min-width:620px!important}
+  .report-section>div[style*="overflow:auto"]{o

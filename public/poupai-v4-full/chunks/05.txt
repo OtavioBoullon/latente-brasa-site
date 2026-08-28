@@ -1,0 +1,75 @@
+verflow-x:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .offer-grid{grid-template-columns:1fr!important}
+  .offer-card{padding:14px!important}
+  .market-row{grid-template-columns:74px 1fr 64px!important;gap:7px!important}
+  .risk-grid,.evidence-grid,.checks-grid,.action-timeline{grid-template-columns:1fr 1fr!important}
+  .dossier-head{flex-direction:column!important}.dossier-impact{text-align:left!important}
+  .dossier-body{padding:13px!important}
+  .action-stage{padding:11px!important}
+  .script-box{padding:14px!important}
+  .negotiation-grid{gap:9px!important}
+
+  /* V4 produto */
+  .trace-doc,.trace-source,.whatif-controls,.whatif-result,.strategy-side,.proposal-result,.confidence-total{padding:14px!important;border-radius:14px!important}
+  .trace-line{font-size:9px!important;gap:8px!important}
+  .source-proof{grid-template-columns:1fr 1fr!important}
+  .whatif{gap:9px!important}.switch-row{gap:10px!important;padding:10px 0!important}
+  .switch-copy b{font-size:10px!important}.switch-copy span{font-size:8px!important}
+  .whatif-result h5{font-size:21px!important}
+  .whatif-kpis,.proposal-metrics{grid-template-columns:1fr 1fr!important}
+  .strategy-grid{gap:9px!important}
+  .strategy-step{grid-template-columns:30px 1fr!important;gap:8px!important;align-items:start!important}
+  .strategy-step .rule{grid-column:2!important;text-align:left!important;margin-top:2px}
+  .proposal-form{grid-template-columns:1fr!important}
+  .proposal-form .wide{grid-column:auto!important}
+  .proposal-result h5{font-size:18px!important}
+  .confidence-total strong{font-size:31px!important}
+  .conf-row{grid-template-columns:88px 1fr 34px!important;font-size:8px!important}
+
+  /* casos e feedbacks */
+  .cases-layout{gap:13px!important}
+  .case-grid{grid-template-columns:1fr!important;gap:10px!important}
+  .case-card{padding:16px!important;border-radius:17px!important}
+  .review-avatar{width:40px!important;height:40px!important}
+  .review-person b{font-size:12px!important}.review-person span{font-size:8px!important}
+  .review-stars{margin:10px 0 8px!important}
+  .stars{font-size:15px!important}.review-quote{font-size:11px!important;line-height:1.6!important}
+  .feedback-box{padding:18px!important;border-radius:19px!important}
+  .feedback-box h3{font-size:20px!important}
+  .star-input button{font-size:27px!important;min-height:38px!important;min-width:35px!important}
+  .area-grid{grid-template-columns:1fr!important}
+
+  /* modais */
+  .modal{padding:10px!important;align-items:flex-end!important}
+  .modal-card{width:100%!important;max-width:100%!important;max-height:92dvh!important;border-radius:22px 22px 10px 10px!important}
+  .modal-top{padding:16px!important}.modal-body{padding:16px!important}
+  .methods{grid-template-columns:1fr 1fr!important}
+  .modal-meta{grid-template-columns:1fr 1fr!important}
+  .evidence-preview{overflow-x:auto}
+
+  .cta{padding:31px 17px!important;border-radius:23px!important}
+  .cta h2{font-size:28px!important}.cta p{font-size:12px!important}
+  .cta .btn{width:100%;min-height:48px}
+  .footer{padding:28px 0!important}.footer-inner{flex-direction:column!important;align-items:flex-start!important;gap:14px!important}
+  .footer-links{gap:10px 13px!important}
+}
+@media (max-width:390px){
+  .wrap{padding-left:12px;padding-right:12px}
+  h1{font-size:35px!important}
+  .proof-grid,.stats-grid{grid-template-columns:1fr!important}
+  .report-cover-kpis,.executive-side,.risk-grid,.evidence-grid,.checks-grid,.action-timeline,.whatif-kpis,.proposal-metrics,.modal-meta{grid-template-columns:1fr!important}
+  .score-top{align-items:flex-start!important}
+  .score-ring{width:82px!important;height:82px!important;flex-basis:82px!important}
+  .saving-compare{grid-template-columns:1fr!important}
+  .metric{grid-template-columns:82px 1fr 34px!important}
+}
+</style>
+
+</head>
+<body>
+<div class="demo-bar">Ambiente de demonstração — <b>nenhuma cobrança real</b> e ofertas ilustrativas. O layout representa a experiência comercial planejada.</div>
+<header><div class="wrap nav"><a class="brand" href="#inicio"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20430%20120%22%3E%3Crect%20width%3D%22430%22%20height%3D%22120%22%20fill%3D%22white%22%2F%3E%3Cg%20transform%3D%22translate%284%2012%29%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2288%22%20height%3D%2288%22%20rx%3D%2224%22%20fill%3D%22%23061b39%22%2F%3E%3Cpath%20d%3D%22M26%2022h25c20%200%2031%2011%2031%2027S71%2076%2051%2076H42v12H26V22zm16%2014v26h9c10%200%2015-5%2015-13s-5-13-15-13h-9z%22%20fill%3D%22white%22%2F%3E%3Cpath%20d%3D%22M59%2052l29-16v31L59%2082z%22%20fill%3D%22%232bc542%22%2F%3E%3Ctext%20x%3D%22108%22%20y%3D%2266%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2254%22%20font-weight%3D%22800%22%20fill%3D%22%23061b39%22%3Epoupa%3C%2Ftext%3E%3Ctext%20x%3D%22259%22%20y%3D%2266%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2254%22%20font-weight%3D%22800%22%20fill%3D%22%232bc542%22%3Ei%3C%2Ftext%3E%3Ctext%20x%3D%22108%22%20y%3D%2291%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2215%22%20font-weight%3D%22600%22%20fill%3D%22%2366788e%22%3EDescubra.%20Compare.%20Poupe.%20Sempre.%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt="Poupai"></a><nav class="navlinks"><a href="#como">Como funciona</a><a href="#seguranca">Segurança</a><a href="#casos">Casos</a><a href="#minha-area">Minha área</a><a href="#faq">Dúvidas</a></nav><a class="btn btn-primary" href="#analisar">Analisar grátis</a></div></header>
+<main>
+<section class="hero" id="inicio"><div class="wrap hero-grid"><div><div class="eyebrow"><span class="dot"></span>Análise inicial gratuita • sem assinatura</div><h1>Você pode estar pagando <span>caro</span> na sua internet.</h1><p class="hero-copy">Envie sua conta. O Poupai entende seu plano, identifica cobranças e estima oportunidades de economia antes de você decidir se quer o relatório completo.</p><div class="hero-actions"><a href="#analisar" class="btn btn-primary">⚡ Analisar minha conta grátis</a><button class="btn btn-ghost" id="demoBtn">Ver demonstração</button></div><div class="trust-inline"><span><i class="check">✓</i>Sem senha da operadora</span><span><i class="check">✓</i>Você vê o potencial antes de pagar</span><span><i class="check">✓</i>Sem promessa falsa de economia</span></div></div><div class="hero-panel"><div class="mini-bill"><div class="bill-head"><div class="provider"><div class="provider-icon">C</div><div><b>Internet residencial</b><div class="muted" style="font-size:12px">Exemplo de análise</div></div></div><div class="bill-price">R$ 179,90</div></div><div class="divider"></div><div class="row"><span>Plano identificado</span><b>500 Mbps</b></div><div class="row"><span>Adicionais</span><b>2 encontrados</b></div><div class="row"><span>Região</span><b>São Paulo</b></div><div class="hero-result"><div><strong>Potencial identificado</strong><span class="muted" style="font-size:11px">3 oportunidades</span></div><b>até R$ 54/mês</b></div></div></div></div></section>
+<section class="proofbar"><div class="wrap proof-grid"><div class="proof"><strong>R$ 0</strong><span>para saber se há oportunidade</span></div><div class="proof"><strong>1 arquivo</strong><span>PDF ou foto da sua fatura</span></div><div class="proof"><strong>R$ 19,90</strong><span>relatório completo no modelo atual</span></div><div class="proof"><strong>Sem venda forçada</strong><span>se não houver valor, não oferecemos relatório</span></div></div></section>
+<section class="section" id="como"><div class="wrap"><div class="section-title"><span class="kicker">Como funciona</span><h2>Você envia a conta. O Poupai transforma cobrança em decisão.</h2><p>O fluxo foi desenhado para ser simples para o cliente e verificável para o produto.</p></div><div class="steps"><article class="step"><div class="stepnum">1</div><h3>Envie sua fatura</h3><p>O motor identifica operadora, plano, mensalidade, adicionais e condições relevantes.</p></article><artic

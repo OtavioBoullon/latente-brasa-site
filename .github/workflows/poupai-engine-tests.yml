@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Validate production API syntax
-        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js && node --check api/smoke-production.js
+        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js
       - name: Build site
         run: npm run build
       - name: Run V1 tests

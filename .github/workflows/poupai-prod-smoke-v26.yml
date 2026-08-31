@@ -1,0 +1,59 @@
+name: Poupai Production Smoke V2.6
+
+on:
+  push:
+    branches:
+      - poupai-v4-full-public
+    paths:
+      - '.github/workflows/poupai-prod-smoke-v26.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production health
+        run: |
+          set -e
+          for i in $(seq 1 20); do
+            code=$(curl -L -sS -o /tmp/health.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/health' || true)
+            echo "health_http=$code"
+            cat /tmp/health.json || true
+            if [ "$code" = "200" ] && node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/health.json'));if(j.release!=='2.6.2-gemini-cardless'||j.ai?.authAvailable!==true||j.ai?.readerModel!=='gemini-3.6-flash'||j.ai?.marketModel!=='gemini-3.6-flash')process.exit(1)"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+      - name: Test Reader
+        run: |
+          set -e
+          node - <<'NODE'
+          const fs=require('fs');
+          const base64='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';
+          fs.writeFileSync('/tmp/reader-request.json',JSON.stringify({filename:'synthetic-tim.png',mimeType:'image/png',base64}));
+          NODE
+          code=$(curl -L -sS --max-time 75 -H 'Content-Type: application/json' --data-binary @/tmp/reader-request.json -o /tmp/reader.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/read-bill' || true)
+          echo "reader_http=$code"
+          cat /tmp/reader.json
+          test "$code" = "200"
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/reader.json'));if(j.aiTransport!=='gemini-direct'||j.providerModel!=='gemini-3.6-flash'||!j.extraction)process.exit(1);console.log('READER_PASS',j.extraction.provider,j.extraction.speedMbps,j.extraction.internetMonthlyPrice,j.nextStep)"
+      - name: Test Market and Pipeline
+        run: |
+          set -e
+          printf '%s' '{"cep":"01001-000","city":"São Paulo","state":"SP"}' > /tmp/market-request.json
+          code=$(curl -L -sS --max-time 90 -H 'Content-Type: application/json' --data-binary @/tmp/market-request.json -o /tmp/market.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/find-offers' || true)
+          echo "market_http=$code"
+          cat /tmp/market.json
+          test "$code" = "200"
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/market.json'));if(j.aiTransport!=='gemini-direct-free-tier'||j.providerModel!=='gemini-3.6-flash'||j.searchTool!=='official_page_fetch'||!j.result)process.exit(1);console.log('MARKET_PASS','pages='+j.sourceFetch?.fetched,'offers='+j.metrics?.acceptedOffers,j.nextStep)"
+          node - <<'NODE'
+          const fs=require('fs');
+          const reader=JSON.parse(fs.readFileSync('/tmp/reader.json','utf8'));
+          const market=JSON.parse(fs.readFileSync('/tmp/market.json','utf8'));
+          fs.writeFileSync('/tmp/pipeline-request.json',JSON.stringify({extraction:reader.extraction,marketResult:market.result,engineConfig:{}}));
+          NODE
+          code=$(curl -L -sS --max-time 30 -H 'Content-Type: application/json' --data-binary @/tmp/pipeline-request.json -o /tmp/pipeline.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/run-pipeline' || true)
+          echo "pipeline_http=$code"
+          cat /tmp/pipeline.json
+          test "$code" = "200"
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/pipeline.json'));if(!j.version||!j.freeDiagnosis)process.exit(1);console.log('PIPELINE_PASS',j.version,j.freeDiagnosis.decision||j.safeDecision?.decision||j.decisionReason)"

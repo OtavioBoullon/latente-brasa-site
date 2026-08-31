@@ -1,0 +1,192 @@
+(()=>{
+  'use strict';
+  const $=(s)=>document.querySelector(s);
+  const $$=(s)=>[...document.querySelectorAll(s)];
+  const API_BASE=window.POUPAI_API_BASE || (/htmlpreview\.github\.io$/i.test(location.hostname)?null:location.origin);
+  let selectedFile=null;
+  let lastPipeline=null;
+
+  const css=`
+  .poupai-real-note{margin-top:12px;padding:10px 12px;border-radius:12px;background:#edf9ef;border:1px solid #d4eed9;color:#176b2b;font-size:11px;font-weight:800}
+  .poupai-real-note.warn{background:#fff7e8;border-color:#f1dfb5;color:#875d00}
+  .poupai-real-status{margin:0 0 17px;border-radius:20px;padding:18px 20px;background:#fff;border:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:center}
+  .poupai-real-status h4{margin:0;color:var(--navy);font-size:19px}.poupai-real-status p{margin:3px 0 0;color:var(--muted);font-size:12px}
+  .poupai-decision{padding:8px 11px;border-radius:999px;font-size:11px;font-weight:950;white-space:nowrap}.poupai-decision.troque{background:#e9f9ed;color:#13772a}.poupai-decision.negocie{background:#fff5df;color:#8c5b00}.poupai-decision.mantenha{background:#edf3ff;color:#234f91}.poupai-decision.inconclusiva{background:#f2f4f6;color:#66788e}
+  .poupai-real-offers{margin-top:17px;background:#fff;border:1px solid var(--line);border-radius:21px;padding:20px}.poupai-real-offers h4{margin:0 0 5px;color:var(--navy);font-size:18px}.poupai-real-offers>p{margin:0 0 15px;color:var(--muted);font-size:11px}
+  .real-offer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.real-offer{border:1px solid var(--line);border-radius:17px;padding:16px;background:#fbfdfb;display:flex;flex-direction:column;min-width:0}.real-offer.best{border-color:#bde8c4;background:#f2fbf4}.real-offer-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.real-offer-rank{font-size:10px;font-weight:950;color:#7c8b9c}.real-offer-status{font-size:9px;font-weight:950;padding:5px 7px;border-radius:999px;background:#eef2ef;color:#66788e}.real-offer-status.confirmed{background:#e9f9ed;color:#13772a}.real-offer h5{margin:11px 0 2px;color:var(--navy);font-size:15px}.real-offer-provider{font-size:11px;color:var(--muted)}.real-offer-price{font-size:25px;letter-spacing:-1px;font-weight:950;color:var(--navy);margin:10px 0 1px}.real-offer-price small{font-size:10px;letter-spacing:0;color:var(--muted)}.real-offer-meta{font-size:11px;color:#63758a;margin-bottom:10px}.real-offer-save{font-size:11px;color:#16802d;font-weight:900;margin-bottom:12px}.real-offer a{margin-top:auto;border-radius:11px;padding:10px 11px;background:var(--navy);color:#fff;font-size:11px;font-weight:900;text-align:center}
+  .poupai-blockers{background:#fff;border:1px solid #ead9d9;border-radius:21px;padding:20px;margin-top:17px}.poupai-blockers h4{margin:0 0 8px;color:var(--navy)}.poupai-blockers p{margin:0 0 12px;color:var(--muted);font-size:12px}.poupai-blockers ul{margin:0;padding-left:18px;color:#6d5560;font-size:12px}.poupai-blockers li{margin:6px 0}
+  .poupai-full-real{display:none;margin-top:17px;background:#fff;border:1px solid var(--line);border-radius:23px;padding:22px}.poupai-full-real.show{display:block}.poupai-full-real h4{margin:0 0 5px;color:var(--navy);font-size:20px}.poupai-full-real>p{margin:0 0 16px;color:var(--muted);font-size:12px}.full-real-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.full-real-kpi{padding:13px;border-radius:14px;background:#f6f9f7}.full-real-kpi small{display:block;font-size:9px;text-transform:uppercase;color:#7d8c9b;font-weight:900}.full-real-kpi b{display:block;color:var(--navy);font-size:16px;margin-top:2px}.full-real-kpi b.green{color:#16802d}.real-method{font-size:10px;color:#758596;background:#f7f9f8;border-radius:12px;padding:12px;margin-top:14px}
+  .cep-extra-field{margin-top:11px}.cep-extra-field label{display:block;font-size:12px;font-weight:950;color:var(--navy);margin-bottom:7px}.cep-extra-field input{border:1px solid #dbe4dd;border-radius:13px;padding:13px 12px;outline:none;font-weight:800;color:var(--navy);width:100%}.cep-extra-field small{display:block;font-size:10px;color:#8593a3;margin-top:6px}
+  @media(max-width:800px){.real-offer-grid{grid-template-columns:1fr}.poupai-real-status{align-items:flex-start;flex-direction:column}.full-real-kpis{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.full-real-kpis{grid-template-columns:1fr}.poupai-real-offers,.poupai-full-real,.poupai-blockers{padding:16px}}
+  `;
+  const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+
+  function text(sel,value){const el=$(sel);if(el&&value!=null)el.textContent=value}
+  function money(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'—'}
+  function cleanCep(v){const d=String(v||'').replace(/\D/g,'').slice(0,8);return d.length===8?`${d.slice(0,5)}-${d.slice(5)}`:null}
+  function mimeFor(file){if(file.type)return file.type;const n=file.name.toLowerCase();if(n.endsWith('.pdf'))return'application/pdf';if(/\.jpe?g$/.test(n))return'image/jpeg';if(n.endsWith('.png'))return'image/png';if(n.endsWith('.webp'))return'image/webp';return'application/octet-stream'}
+  function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]||'');r.onerror=()=>reject(new Error('Não foi possível ler o arquivo.'));r.readAsDataURL(file)})}
+  async function post(path,body,timeout=50000){
+    if(!API_BASE)throw new Error('A análise real precisa ser aberta na versão hospedada do Poupai, não no HTMLPreview do GitHub.');
+    const c=new AbortController();const t=setTimeout(()=>c.abort(),timeout);
+    try{
+      const r=await fetch(`${API_BASE}${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:c.signal});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(j.message||j.error||`Falha em ${path} (${r.status})`);
+      return j;
+    }finally{clearTimeout(t)}
+  }
+  function toast(msg){const el=$('#toast');if(!el){alert(msg);return}el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3200)}
+  function phase(p,title,desc,chip){
+    $('#uploadStage').style.display='none';$('#analysis').classList.add('show');$('#results').classList.remove('show');
+    text('#analysisTitle',title);text('#analysisText',desc);if($('#progressBar'))$('#progressBar').style.width=p+'%';if(chip)$(chip)?.classList.add('done');
+  }
+  function resetChips(){$$('.chip').forEach(x=>x.classList.remove('done'))}
+
+  function installRealMode(){
+    const demo=$('.demo-bar');if(demo)demo.innerHTML='<b>Motor V2.5 conectado</b> • análise real de faturas • resultados dependem da disponibilidade das fontes oficiais';
+    const pill=$('.secure-pill');if(pill)pill.textContent='🔒 Análise real • V2.5';
+    const note=$('.privacy-note');if(note)note.textContent='A fatura é enviada ao backend apenas para a leitura da análise. O fluxo foi desenhado sem histórico no V1/V2 e sem armazenar permanentemente a fatura.';
+    const fn=$('.file-note');if(fn)fn.textContent='PDF, JPG, PNG ou WEBP • até 3 MB. A fatura é processada para esta análise e não entra em histórico.';
+    const sec=$('#analisar .section-title p');if(sec)sec.textContent='Envie uma fatura real. O Poupai lê a conta, valida o custo efetivo e pesquisa ofertas oficiais para a sua região.';
+    const cep=$('#cep');if(cep){cep.value='';cep.placeholder='00000-000'}
+    const input=$('#fileInput');if(input)input.accept='.pdf,image/jpeg,image/png,image/webp';
+    const scenarios=$('.demo-scenarios');if(scenarios)scenarios.style.display='none';
+    if($('.cep-box')&&!$('#houseNumber')){
+      const wrap=document.createElement('div');wrap.className='cep-extra-field';wrap.innerHTML='<label for="houseNumber">Número do imóvel <span style="font-weight:700;color:#8795a4">(opcional)</span></label><input id="houseNumber" inputmode="text" maxlength="24" placeholder="Ex.: 120 ou S/N"><small>Com o número, tentamos confirmar cobertura em Claro/TIM. Alguns fluxos podem exigir dados adicionais.</small>';
+      $('.cep-box').appendChild(wrap);
+    }
+    const realNote=document.createElement('div');realNote.className='poupai-real-note';realNote.textContent='Agora o botão “Analisar agora” executa o motor real. Se alguma informação crítica não estiver na fatura, o Poupai vai sinalizar em vez de adivinhar.';$('.cep-box')?.appendChild(realNote);
+
+    $('#fileInput')?.addEventListener('change',e=>{selectedFile=e.target.files?.[0]||null});
+    $('#drop')?.addEventListener('drop',e=>{selectedFile=e.dataTransfer?.files?.[0]||null});
+    const analyze=$('#analyzeBtn');if(analyze)analyze.onclick=runRealAnalysis;
+    const demoBtn=$('#demoBtn');if(demoBtn)demoBtn.onclick=()=>{$('#analisar')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>$('#pickBtn')?.click(),450)};
+    text('#unlockBtn','Abrir relatório completo (teste)');
+    const unlock=$('#unlockBtn');if(unlock)unlock.onclick=()=>{const r=$('#realFullReport');if(r){r.classList.add('show');$('#locked').style.display='none';r.scrollIntoView({behavior:'smooth',block:'start'})}};
+  }
+
+  async function runRealAnalysis(){
+    if(!selectedFile){const input=$('#fileInput');selectedFile=input?.files?.[0]||null}
+    if(!selectedFile){toast('Escolha uma fatura antes de analisar.');return}
+    if(selectedFile.size>3*1024*1024){toast('Use um arquivo de até 3 MB.');return}
+    const mime=mimeFor(selectedFile);if(!['application/pdf','image/jpeg','image/png','image/webp'].includes(mime)){toast('Formato não suportado. Use PDF, JPG, PNG ou WEBP.');return}
+    resetChips();lastPipeline=null;$('#report')?.classList.remove('show');$('#noSale')?.classList.remove('show');$('#locked').style.display='none';$('#realFullReport')?.remove();$('#realOffers')?.remove();$('#realStatus')?.remove();$('#realBlockers')?.remove();
+    try{
+      phase(12,'Lendo sua fatura…','Extraindo operadora, plano, velocidade, preço e composição da cobrança.','#c1');
+      const base64=await fileToBase64(selectedFile);
+      const reader=await post('/api/read-bill',{filename:selectedFile.name,mimeType:mime,base64},65000);
+      const extraction={...(reader.extraction||{})};
+      const typedCep=cleanCep($('#cep')?.value);
+      if(typedCep)extraction.cep=typedCep;
+      if(extraction.cep&&$('#cep'))$('#cep').value=extraction.cep;
+
+      phase(30,'Validando a leitura…','Checando consistência, descontos, combos e custo efetivo da conta.','#c2');
+      const preflight=await post('/api/run-pipeline',{extraction,marketResult:{},engineConfig:{}},20000);
+      renderExtracted(extraction,preflight);
+      if(preflight.decisionReason!=='INSUFFICIENT_MARKET_DATA'){
+        finishLoader();renderPipeline(preflight,extraction);return;
+      }
+
+      const cep=cleanCep(extraction.cep||$('#cep')?.value);
+      if(!cep){finishLoader();renderManualBlock(extraction,'Precisamos do CEP da instalação para pesquisar ofertas reais. Digite o CEP e clique em “Analisar agora” novamente.');return}
+
+      phase(53,'Pesquisando ofertas oficiais…','Comparando preços e condições atuais para a sua região.','#c3');
+      const marketPayload=await post('/api/find-offers',{cep,city:extraction.city||null,state:extraction.state||null},70000);
+      let marketResult=marketPayload.result||{};
+
+      const number=String($('#houseNumber')?.value||'').trim();
+      if(number&&marketResult.offers?.length){
+        phase(73,'Tentando confirmar cobertura…','Consultando o endereço nas operadoras suportadas, sem inventar disponibilidade.','#c4');
+        const supported=[...new Set(marketResult.offers.map(o=>o.provider).filter(p=>/^(Claro|TIM|Vivo)$/i.test(String(p))))];
+        if(supported.length){
+          try{
+            const checked=await post('/api/check-availability',{cep,number,providers:supported,marketResult},90000);
+            if(checked.updatedMarket)marketResult=checked.updatedMarket;
+          }catch(err){console.warn('Poupai checker:',err);}
+        }
+      }else{$('#c4')?.classList.add('done')}
+
+      phase(90,'Calculando a recomendação…','Aplicando economia em 12/24 meses, qualidade e regras de segurança.','#c5');
+      const pipeline=await post('/api/run-pipeline',{extraction,marketResult,engineConfig:{}},25000);
+      finishLoader();renderPipeline(pipeline,extraction);
+    }catch(err){
+      console.error(err);finishLoader();renderFatal(err?.name==='AbortError'?'A análise demorou mais do que o esperado. Tente novamente.':String(err?.message||err));
+    }
+  }
+
+  function finishLoader(){if($('#progressBar'))$('#progressBar').style.width='100%';setTimeout(()=>{$('#analysis')?.classList.remove('show');$('#results')?.classList.add('show')},220)}
+
+  function renderExtracted(x,pipeline){
+    const cost=pipeline?.billingBaseline?.baselineMonthlyCost ?? x.invoiceTotal ?? x.internetMonthlyPrice;
+    text('#xProvider',x.provider||'Não identificado');text('#xService','Internet');text('#xPlan',x.speedMbps?`${x.speedMbps} Mbps`:'Não identificado');text('#xBill',money(cost));text('#xAdds',`${Array.isArray(x.extras)?x.extras.length:0} encontrado(s)`);
+  }
+
+  function renderFatal(message){
+    $('#analysis')?.classList.remove('show');$('#results')?.classList.add('show');
+    renderBlockers([{message}], 'Não foi possível concluir a análise');
+  }
+  function renderManualBlock(x,message){renderExtracted(x,null);$('#results')?.classList.add('show');renderBlockers([{message}], 'Falta uma informação para continuar')}
+  function renderBlockers(blockers,title='Análise inconclusiva'){
+    $('#locked').style.display='none';$('#noSale')?.classList.remove('show');$('#realOffers')?.remove();$('#realStatus')?.remove();$('#realBlockers')?.remove();
+    const box=document.createElement('div');box.id='realBlockers';box.className='poupai-blockers';box.innerHTML=`<h4>${title}</h4><p>O Poupai preferiu não dar uma recomendação que poderia estar errada.</p><ul>${(blockers||[]).map(b=>`<li>${escapeHtml(b.message||b.code||'Dado insuficiente')}</li>`).join('')}</ul>`;
+    $('.extracted')?.insertAdjacentElement('afterend',box);
+    $('.result-grid')?.setAttribute('style','display:none');$('.compare-visual')?.setAttribute('style','display:none');$('#opps')?.setAttribute('style','display:none');
+  }
+
+  function renderPipeline(pipeline,extraction){
+    lastPipeline=pipeline;renderExtracted(extraction,pipeline);
+    $('.result-grid')?.removeAttribute('style');$('.compare-visual')?.removeAttribute('style');$('#opps')?.removeAttribute('style');$('#realBlockers')?.remove();
+    if(pipeline.blockingReasons?.length){renderBlockers(pipeline.blockingReasons);return}
+    const analysis=pipeline.analysis; if(!analysis){renderBlockers([{message:pipeline.message||'Não houve dados suficientes para comparar o mercado.'}]);return}
+    const comps=analysis.comparisons||[];const best=comps[0]||null;const bill=analysis.bill||{};
+    const decision=pipeline.finalDecision!=='ANALISE_INCONCLUSIVA'?pipeline.finalDecision:(pipeline.provisionalDecision||'ANALISE_INCONCLUSIVA');
+    const isFinal=pipeline.finalDecision!=='ANALISE_INCONCLUSIVA';
+    const score=analysis.freeDiagnosis?.poupaiScore;
+    text('.score-copy h4','Competitividade do plano');text('#scoreVal',score??'—');if($('#scoreRing')&&score!=null)$('#scoreRing').style.setProperty('--v',score);
+    text('#scoreText',score==null?'Ainda não há mercado suficiente para calcular o score.':score>=80?'Seu plano atual parece competitivo frente às opções verificadas.':score>=55?'Seu plano está em uma faixa intermediária; vale revisar condições.':'Seu plano parece pouco competitivo frente às melhores alternativas encontradas.');
+    $('.score-breakdown')?.setAttribute('style','display:none');
+
+    const monthly=best?Math.max(0,Number(best.monthlyEquivalentSavings||0)):0;const s12=best?Math.max(0,Number(best.estimatedSavings12Months||0)):0;const s24=best?Math.max(0,Number(best.estimatedSavings24Months||0)):0;
+    text('#saveRange',monthly>0?money(monthly):'Sem economia clara');text('#yearRange',s12>0?`${money(s12)} em 12 meses`:'nenhuma economia relevante confirmada');text('#currentMini',`${money(bill.currentMonthlyCost)}/mês`);text('#targetMini',best?`~ ${money(best.effectiveMonthlyCost12)}/mês`:'—');text('#barCurrentVal',money(bill.currentMonthlyCost));text('#barTargetVal',best?money(best.effectiveMonthlyCost12):'—');
+    if($('#barTarget')&&best&&bill.currentMonthlyCost>0)$('#barTarget').style.width=Math.min(100,(best.effectiveMonthlyCost12/bill.currentMonthlyCost)*100)+'%';
+
+    renderDecisionStatus(decision,isFinal,pipeline);
+    renderOpportunityCards(comps,pipeline);
+    renderOffers(comps,pipeline);
+    renderRealFullReport(pipeline,decision,isFinal,best,s12,s24,monthly);
+
+    if(decision==='MANTENHA'&&isFinal){$('#locked').style.display='none';$('#noSale')?.classList.add('show');text('#noSaleText','As ofertas verificadas não trouxeram vantagem suficiente para justificar a troca neste momento.');}
+    else if(comps.length){$('#noSale')?.classList.remove('show');$('#locked').style.display='block';text('#unlockTitle',isFinal?'Veja as ofertas, fontes e condições completas':'Veja as ofertas encontradas e o que ainda precisa ser confirmado');text('#unlockBtn','Abrir relatório completo (teste)');}
+    else{$('#locked').style.display='none'}
+  }
+
+  function renderDecisionStatus(decision,isFinal,pipeline){
+    $('#realStatus')?.remove();const map={TROQUE:'TROQUE',NEGOCIE:'NEGOCIE',MANTENHA:'MANTENHA',ANALISE_INCONCLUSIVA:'ANÁLISE INCONCLUSIVA'};const cls=String(decision||'ANALISE_INCONCLUSIVA').toLowerCase().replace('analise_inconclusiva','inconclusiva');
+    const box=document.createElement('div');box.id='realStatus';box.className='poupai-real-status';box.innerHTML=`<div><h4>${isFinal?'Recomendação final':'Análise preliminar'}</h4><p>${escapeHtml(pipeline.message||'Resultado calculado pelo Poupai Engine.')}</p></div><span class="poupai-decision ${cls}">${map[decision]||'ANÁLISE INCONCLUSIVA'}</span>`;$('.extracted')?.insertAdjacentElement('afterend',box);
+  }
+
+  function renderOpportunityCards(comps,pipeline){
+    const cards=$$('#opps .opp');cards.forEach((card,i)=>{const c=comps[i];if(!c){card.style.display='none';return}card.style.display='block';const o=c.offer||{};const title=card.querySelector('h5');const desc=card.querySelector('p');const tag=card.querySelector('.tag');if(title)title.textContent=`${o.provider||'Oferta'} • ${o.speedMbps||'—'} Mbps`;if(desc)desc.textContent=c.monthlyEquivalentSavings>0?`${o.planName||'Plano'}: economia média de ${money(c.monthlyEquivalentSavings)}/mês.`:`${o.planName||'Plano'}: sem economia financeira clara frente ao atual.`;if(tag){tag.textContent=c.worthIt?'ALTA':'AVALIAR';tag.classList.toggle('medium',!c.worthIt)}});
+  }
+
+  function renderOffers(comps,pipeline){
+    $('#realOffers')?.remove();if(!comps.length)return;const box=document.createElement('section');box.id='realOffers';box.className='poupai-real-offers';
+    box.innerHTML=`<h4>Ofertas encontradas pelo motor</h4><p>${pipeline.requiresAddressConfirmation?'Preços/fontes foram encontrados, mas a disponibilidade exata ainda precisa ser confirmada onde indicado.':'Disponibilidade confirmada para pelo menos uma das opções abaixo.'}</p><div class="real-offer-grid">${comps.slice(0,3).map((c,i)=>offerHtml(c,i)).join('')}</div>`;
+    $('#opps')?.insertAdjacentElement('afterend',box);
+  }
+  function offerHtml(c,i){const o=c.offer||{};const confirmed=c.availability==='confirmed'||o.availabilityConfirmed===true;const save=Number(c.estimatedSavings12Months||0);return `<article class="real-offer ${i===0?'best':''}"><div class="real-offer-top"><span class="real-offer-rank">#${i+1}${i===0?' • MELHOR OPÇÃO':''}</span><span class="real-offer-status ${confirmed?'confirmed':''}">${confirmed?'COBERTURA CONFIRMADA':'CONFIRMAR ENDEREÇO'}</span></div><h5>${escapeHtml(o.planName||'Plano de internet')}</h5><div class="real-offer-provider">${escapeHtml(o.provider||'Operadora')} • ${o.speedMbps||'—'} Mbps${o.technology?' • '+escapeHtml(o.technology):''}</div><div class="real-offer-price">${money(o.priceMonthly)} <small>/mês anunciado</small></div><div class="real-offer-meta">Custo médio 12m: ${money(c.effectiveMonthlyCost12)}${o.contractMonths?` • fidelidade ${o.contractMonths}m`:''}</div><div class="real-offer-save">${save>0?`Economia estimada em 12m: ${money(save)}`:'Sem economia financeira clara'}</div>${o.sourceUrl?`<a href="${escapeAttr(o.sourceUrl)}" target="_blank" rel="noopener noreferrer">Ver oferta oficial ↗</a>`:'<span style="font-size:10px;color:#8b98a6">Fonte sem link navegável</span>'}</article>`}
+
+  function renderRealFullReport(pipeline,decision,isFinal,best,s12,s24,monthly){
+    $('#realFullReport')?.remove();const comps=pipeline.analysis?.comparisons||[];const b=pipeline.billingBaseline||{};const box=document.createElement('section');box.id='realFullReport';box.className='poupai-full-real';
+    box.innerHTML=`<h4>Relatório Poupai • dados reais da análise</h4><p>${isFinal?'A recomendação abaixo passou pelo gate de disponibilidade.':'Este relatório é preliminar: preços e fontes foram analisados, mas a cobertura exata ainda pode depender de confirmação.'}</p><div class="full-real-kpis"><div class="full-real-kpi"><small>Decisão</small><b>${escapeHtml(decision.replaceAll('_',' '))}</b></div><div class="full-real-kpi"><small>Custo atual usado</small><b>${money(b.baselineMonthlyCost)}</b></div><div class="full-real-kpi"><small>Economia 12m</small><b class="green">${money(s12)}</b></div><div class="full-real-kpi"><small>Economia 24m</small><b class="green">${money(s24)}</b></div></div>${best?`<div class="poupai-real-note">Melhor alternativa: <b>${escapeHtml(best.offer?.provider||'')}</b> • ${escapeHtml(best.offer?.planName||'')} • economia média ${money(monthly)}/mês.</div>`:''}<div class="real-offer-grid" style="margin-top:14px">${comps.slice(0,3).map((c,i)=>offerHtml(c,i)).join('')}</div><div class="real-method">Baseline: ${escapeHtml(b.baselineType||'—')} • Score de saúde do pipeline: ${pipeline.pipelineHealthScore??'—'}/100 • ${pipeline.billFreshness?.status||'—'} • Fontes verificadas em ${pipeline.marketResult?.checkedAt||'data não informada'}.</div>`;
+    $('#locked')?.insertAdjacentElement('afterend',box);
+    const unlock=$('#unlockBtn');if(unlock)unlock.onclick=()=>{box.classList.add('show');$('#locked').style.display='none';box.scrollIntoView({behavior:'smooth',block:'start'})};
+  }
+
+  function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function escapeAttr(v){return escapeHtml(v).replace(/`/g,'&#96;')}
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installRealMode);else installRealMode();
+})();

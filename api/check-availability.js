@@ -200,7 +200,19 @@ async function runProvider(browser, providerId, address, options) {
   }
 }
 
+async function runProviderWithRetry(browser, providerId, address, options) {
+  const startedAt = Date.now();
+  let attempts = 1;
+  let result = await runProvider(browser, providerId, address, options);
+  if (['CHECK_FAILED', 'INDETERMINATE'].includes(result.status)) {
+    attempts = 2;
+    result = await runProvider(browser, providerId, address, options);
+  }
+  return { ...result, attempts, timingMs: Date.now() - startedAt };
+}
+
 export default async function handler(req, res) {
+  const startedAt = Date.now();
   if (req.method !== 'POST') return json(res, 405, { error: 'METHOD_NOT_ALLOWED' });
   const validation = validateAvailabilityRequest(req.body || {});
   if (!validation.valid) return json(res, 400, { error: 'INVALID_ADDRESS', issues: validation.issues });
@@ -213,26 +225,31 @@ export default async function handler(req, res) {
   let browser = null;
   try {
     const providersToRun = validation.providers.filter((id) => !immediatelyBlocked.some((x) => x.providerId === id));
-    const results = immediatelyBlocked.map((x) => strictAvailabilityGate({
+    const results = immediatelyBlocked.map((x) => ({ ...strictAvailabilityGate({
       provider: PROVIDER_CHECKER_SPECS[x.providerId].provider,
       status: x.requirement.status,
       sourceUrl: PROVIDER_CHECKER_SPECS[x.providerId].coverageUrl,
       exactAddressSubmitted: false,
       confidence: 0.95,
       diagnostic: x.requirement.message,
-    }));
+    }), attempts: 0, timingMs: 0 }));
 
     if (providersToRun.length) {
       browser = await launchBrowser();
-      for (const providerId of providersToRun) results.push(await runProvider(browser, providerId, validation.address, options));
+      for (const providerId of providersToRun) results.push(await runProviderWithRetry(browser, providerId, validation.address, options));
     }
 
     const updatedMarket = req.body?.marketResult ? applyAvailabilityChecksToMarket(req.body.marketResult, results) : null;
     return json(res, 200, {
       checker: `Poupai Provider Checkers V${POUPAI_CHECKERS_VERSION}`,
+      hardeningVersion: '2.2.0',
       address: { cep: validation.address.cep, numberProvided: true },
       results,
       updatedMarket,
+      metrics: {
+        latencyMs: Date.now() - startedAt,
+        providerRuns: results.map((x) => ({ provider: x.provider, status: x.status, attempts: x.attempts, timingMs: x.timingMs })),
+      },
       privacy: {
         persisted: false,
         contactDataReturned: false,
@@ -240,7 +257,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    return json(res, 502, { error: 'CHECKER_RUNTIME_FAILED', message: safeMessage(error) });
+    return json(res, 502, { error: 'CHECKER_RUNTIME_FAILED', message: safeMessage(error), metrics: { latencyMs: Date.now() - startedAt } });
   } finally {
     if (browser) await browser.close().catch(() => {});
   }

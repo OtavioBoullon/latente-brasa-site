@@ -4,6 +4,10 @@ import { applyAvailabilityChecksToMarket } from './provider-checkers-v21.js';
 import { analyzeStructuredInternetBill } from './structured-engine-v23.js';
 import { auditBillFreshness, POUPAI_REAL_BILL_VERSION } from './real-bill-v23.js';
 import {
+  POUPAI_BILLING_BASELINE_VERSION,
+  applyComparisonBaseline,
+} from './billing-baseline-v24.js';
+import {
   POUPAI_HARDENING_VERSION,
   buildAuditTrace,
   deterministicReaderAudit,
@@ -12,9 +16,32 @@ import {
   scorePipelineHealth,
 } from './hardening-v22.js';
 
-export const POUPAI_PIPELINE_VERSION = '2.3.0';
+export const POUPAI_PIPELINE_VERSION = '2.4.0';
 
-export function runPoupaiV23({ extraction, marketResult, availabilityChecks = [], engineConfig = {}, metrics = {} } = {}) {
+function blocker(code, message, stage) {
+  return { code, message, stage };
+}
+
+function addBillAuditEntries(auditTrace, billFreshness, billingBaseline) {
+  auditTrace.splice(1, 0,
+    { stage: 'bill', action: 'freshness', details: billFreshness },
+    { stage: 'bill', action: 'comparison_baseline', details: {
+      version: billingBaseline.version,
+      baselineType: billingBaseline.baselineType,
+      baselineMonthlyCost: billingBaseline.baselineMonthlyCost,
+      internetLinePrice: billingBaseline.internetLinePrice,
+      invoiceTotal: billingBaseline.invoiceTotal,
+      accountingSplitDetected: billingBaseline.accountingSplitDetected,
+      safeForComparison: billingBaseline.safeForComparison,
+      issueCodes: billingBaseline.issues.map((x) => x.code),
+    } },
+  );
+  return auditTrace;
+}
+
+export function runPoupaiV24({ extraction, marketResult, availabilityChecks = [], engineConfig = {}, metrics = {} } = {}) {
+  const preparedExtraction = applyComparisonBaseline(extraction || {}, engineConfig.billingBaseline || {});
+  const billingBaseline = preparedExtraction.billingBaseline;
   const readerValidation = validateReaderExtraction(extraction || {}, {
     minFieldConfidence: engineConfig.minReaderFieldConfidence ?? 0.78,
     minOverallConfidence: engineConfig.minReaderOverallConfidence ?? 0.78,
@@ -29,51 +56,59 @@ export function runPoupaiV23({ extraction, marketResult, availabilityChecks = []
     warningAfterDays: engineConfig.billWarningAfterDays ?? 60,
   });
 
-  if (!readerValidation.validForDiagnosis || !readerAudit.safeToUse) {
-    const finalDecision = 'ANALISE_INCONCLUSIVA';
-    const auditTrace = buildAuditTrace({ extraction, readerAudit, marketResult: null, engineAnalysis: null, finalDecision });
-    auditTrace.splice(1, 0, { stage: 'bill', action: 'freshness', details: billFreshness });
-    return {
-      pipeline: `Poupai Pipeline V${POUPAI_PIPELINE_VERSION}`,
-      hardening: `Poupai Hardening V${POUPAI_HARDENING_VERSION}`,
-      realBillGuard: `Poupai Real Bill V${POUPAI_REAL_BILL_VERSION}`,
-      status: readerAudit.needsConfirmation ? 'REVIEW_BILL' : 'ANALYSIS_INCONCLUSIVE',
-      readerValidation,
-      readerAudit,
-      billFreshness,
-      marketGate: null,
-      marketResult: null,
-      analysis: null,
-      finalDecision,
-      decisionReason: readerAudit.needsConfirmation ? 'READER_CONFIRMATION_REQUIRED' : 'READER_NOT_TRUSTED',
-      auditTrace,
-      pipelineHealthScore: scorePipelineHealth({ readerAudit, marketResult: null, metrics }),
-      metrics,
-      message: 'A leitura da fatura não atingiu o nível de confiança necessário para uma decisão financeira segura.',
-    };
+  const blockingReasons = [];
+  const validationErrors = readerValidation.issues.filter((x) => x.severity === 'error');
+  for (const issue of validationErrors) {
+    blockingReasons.push(blocker(issue.code || 'READER_VALIDATION_ERROR', issue.message, 'reader'));
+  }
+  if (!readerAudit.safeToUse && !validationErrors.length) {
+    blockingReasons.push(blocker(
+      readerAudit.needsConfirmation ? 'READER_CONFIRMATION_REQUIRED' : 'READER_NOT_TRUSTED',
+      'A leitura da fatura não atingiu o nível de confiança necessário para uma decisão financeira segura.',
+      'reader',
+    ));
+  }
+  if (!billFreshness.safeForCurrentComparison) {
+    blockingReasons.push(blocker(billFreshness.code, billFreshness.message, 'bill_freshness'));
+  }
+  if (!billingBaseline.safeForComparison) {
+    const baselineIssue = billingBaseline.issues.find((x) => x.severity !== 'info');
+    blockingReasons.push(blocker(
+      baselineIssue?.code || 'BILLING_BASELINE_UNRESOLVED',
+      baselineIssue?.message || 'Não foi possível determinar com segurança o custo mensal que deve ser usado na comparação.',
+      'billing_baseline',
+    ));
   }
 
-  if (!billFreshness.safeForCurrentComparison) {
+  if (blockingReasons.length) {
     const finalDecision = 'ANALISE_INCONCLUSIVA';
-    const auditTrace = buildAuditTrace({ extraction, readerAudit, marketResult: null, engineAnalysis: null, finalDecision });
-    auditTrace.splice(1, 0, { stage: 'bill', action: 'freshness', details: billFreshness });
+    const auditTrace = addBillAuditEntries(
+      buildAuditTrace({ extraction: preparedExtraction, readerAudit, marketResult: null, engineAnalysis: null, finalDecision }),
+      billFreshness,
+      billingBaseline,
+    );
+    const decisionReason = blockingReasons.length > 1 ? 'MULTIPLE_BLOCKERS' : blockingReasons[0].code;
+    const needsReview = blockingReasons.some((x) => x.stage === 'reader' || x.stage === 'billing_baseline');
     return {
       pipeline: `Poupai Pipeline V${POUPAI_PIPELINE_VERSION}`,
       hardening: `Poupai Hardening V${POUPAI_HARDENING_VERSION}`,
       realBillGuard: `Poupai Real Bill V${POUPAI_REAL_BILL_VERSION}`,
-      status: 'ANALYSIS_INCONCLUSIVE',
+      billingBaselineGuard: `Poupai Billing Baseline V${POUPAI_BILLING_BASELINE_VERSION}`,
+      status: needsReview ? 'REVIEW_BILL' : 'ANALYSIS_INCONCLUSIVE',
       readerValidation,
       readerAudit,
       billFreshness,
+      billingBaseline,
+      blockingReasons,
       marketGate: null,
       marketResult: null,
       analysis: null,
       finalDecision,
-      decisionReason: billFreshness.code,
+      decisionReason,
       auditTrace,
       pipelineHealthScore: Math.min(55, scorePipelineHealth({ readerAudit, marketResult: null, metrics })),
       metrics,
-      message: billFreshness.message,
+      message: blockingReasons.map((x) => x.message).filter(Boolean).join(' '),
     };
   }
 
@@ -90,16 +125,22 @@ export function runPoupaiV23({ extraction, marketResult, availabilityChecks = []
 
   if (!gate.canRunPreliminaryEngine) {
     const finalDecision = 'ANALISE_INCONCLUSIVA';
-    const auditTrace = buildAuditTrace({ extraction, readerAudit, marketResult: hardenedMarket, engineAnalysis: null, finalDecision });
-    auditTrace.splice(1, 0, { stage: 'bill', action: 'freshness', details: billFreshness });
+    const auditTrace = addBillAuditEntries(
+      buildAuditTrace({ extraction: preparedExtraction, readerAudit, marketResult: hardenedMarket, engineAnalysis: null, finalDecision }),
+      billFreshness,
+      billingBaseline,
+    );
     return {
       pipeline: `Poupai Pipeline V${POUPAI_PIPELINE_VERSION}`,
       hardening: `Poupai Hardening V${POUPAI_HARDENING_VERSION}`,
       realBillGuard: `Poupai Real Bill V${POUPAI_REAL_BILL_VERSION}`,
+      billingBaselineGuard: `Poupai Billing Baseline V${POUPAI_BILLING_BASELINE_VERSION}`,
       status: 'ANALYSIS_INCONCLUSIVE',
       readerValidation,
       readerAudit,
       billFreshness,
+      billingBaseline,
+      blockingReasons: [blocker('INSUFFICIENT_MARKET_DATA', gate.message, 'market')],
       marketGate: gate,
       marketResult: hardenedMarket,
       analysis: null,
@@ -118,7 +159,7 @@ export function runPoupaiV23({ extraction, marketResult, availabilityChecks = []
     : marketOffersForEngine(hardenedMarket, { allowCandidates: true });
 
   const analysis = analyzeStructuredInternetBill({
-    extraction,
+    extraction: preparedExtraction,
     offers: engineOffers,
     config: {
       ...engineConfig,
@@ -138,17 +179,23 @@ export function runPoupaiV23({ extraction, marketResult, availabilityChecks = []
   const status = finalDecision === 'ANALISE_INCONCLUSIVA'
     ? (isExact ? 'ANALYSIS_INCONCLUSIVE' : 'PRELIMINARY_ANALYSIS_READY')
     : 'FINAL_ANALYSIS_READY';
-  const auditTrace = buildAuditTrace({ extraction, readerAudit, marketResult: hardenedMarket, engineAnalysis: analysis, finalDecision });
-  auditTrace.splice(1, 0, { stage: 'bill', action: 'freshness', details: billFreshness });
+  const auditTrace = addBillAuditEntries(
+    buildAuditTrace({ extraction: preparedExtraction, readerAudit, marketResult: hardenedMarket, engineAnalysis: analysis, finalDecision }),
+    billFreshness,
+    billingBaseline,
+  );
 
   return {
     pipeline: `Poupai Pipeline V${POUPAI_PIPELINE_VERSION}`,
     hardening: `Poupai Hardening V${POUPAI_HARDENING_VERSION}`,
     realBillGuard: `Poupai Real Bill V${POUPAI_REAL_BILL_VERSION}`,
+    billingBaselineGuard: `Poupai Billing Baseline V${POUPAI_BILLING_BASELINE_VERSION}`,
     status,
     readerValidation,
     readerAudit,
     billFreshness,
+    billingBaseline,
+    blockingReasons: [],
     marketGate: gate,
     marketResult: hardenedMarket,
     analysis,
@@ -164,10 +211,11 @@ export function runPoupaiV23({ extraction, marketResult, availabilityChecks = []
       ? (isExact
           ? 'Os dados disponíveis ainda não sustentam uma recomendação final segura.'
           : `Há uma análise econômica preliminar (${engineDecision || 'sem decisão'}), mas a disponibilidade precisa ser confirmada antes de qualquer recomendação.`)
-      : 'A recomendação final usa leitura validada, fatura recente, ofertas filtradas e disponibilidade confirmada.',
+      : 'A recomendação final usa leitura validada, fatura recente, custo efetivo da fatura, ofertas filtradas e disponibilidade confirmada.',
   };
 }
 
-export const runPoupaiV22 = runPoupaiV23;
-export const runPoupaiV21 = runPoupaiV23;
-export const runPoupaiV2 = runPoupaiV23;
+export const runPoupaiV23 = runPoupaiV24;
+export const runPoupaiV22 = runPoupaiV24;
+export const runPoupaiV21 = runPoupaiV24;
+export const runPoupaiV2 = runPoupaiV24;

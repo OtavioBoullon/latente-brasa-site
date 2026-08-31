@@ -68,7 +68,14 @@ exactRaw.offers = [structuredClone(raw.offers[0])];
 exactRaw.offers[0].availabilityScope = 'address';
 exactRaw.offers[0].availabilityReference = 'endereço confirmado pelo checker';
 exactRaw.offers[0].availabilityEvidence = 'Checker oficial confirmou disponibilidade no imóvel.';
-const exact = normalizeMarketSearch(exactRaw, context, { checkedAt: '2026-08-31' });
+const untrustedAddress = normalizeMarketSearch(exactRaw, context, { checkedAt: '2026-08-31' });
+assert.equal(untrustedAddress.quality.hasExactAvailability, false);
+
+const exact = normalizeMarketSearch(
+  exactRaw,
+  { ...context, addressConfirmationTrusted: true },
+  { checkedAt: '2026-08-31' },
+);
 assert.equal(exact.quality.hasExactAvailability, true);
 assert.equal(marketDecisionGate(exact).status, 'READY_FOR_FINAL_ENGINE');
 assert.equal(marketOffersForEngine(exact).length, 1);

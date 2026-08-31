@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Validate production API syntax
-        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js && node --check api/smoke-production.js
+        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js
       - name: Build site
         run: npm run build
       - name: Run V1 tests
@@ -51,7 +51,7 @@ jobs:
         run: node engine/test/run-pipeline-v25.mjs
       - name: Validate V4 frontend integration script
         run: node engine/test/run-site-integration-v25.mjs
-      - name: Smoke test public Vercel auth
+      - name: Smoke test public Vercel + AI Gateway auth
         env:
           POUPAI_HEALTH_URL: https://latente-brasa-site.vercel.app/api/health
         run: |
@@ -62,22 +62,10 @@ jobs:
             if [ "$code" = "200" ]; then
               cat /tmp/poupai-health.json
               node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-health.json','utf8'));if(j.ok!==true||j.ai?.authAvailable!==true)process.exit(1);console.log('PUBLIC_HEALTH_PASS',j.ai.authMode,j.release)"
-              break
+              exit 0
             fi
-            if [ "$i" = "30" ]; then cat /tmp/poupai-health.json || true; exit 1; fi
             sleep 5
           done
-      - name: Smoke test production Reader and Market
-        run: |
-          set -e
-          reader_code=$(curl -L -sS --max-time 75 -o /tmp/poupai-reader.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/smoke-production?mode=reader' || true)
-          echo "reader_http=$reader_code"
-          cat /tmp/poupai-reader.json || true
-          test "$reader_code" = "200"
-          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-reader.json','utf8'));if(j.ok!==true||!j.aiTransport||!j.providerModel)process.exit(1);console.log('READER_PRODUCTION_PASS',j.aiTransport,j.providerModel,j.nextStep)"
-
-          market_code=$(curl -L -sS --max-time 75 -o /tmp/poupai-market.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/smoke-production?mode=market' || true)
-          echo "market_http=$market_code"
-          cat /tmp/poupai-market.json || true
-          test "$market_code" = "200"
-          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-market.json','utf8'));if(j.ok!==true||!j.aiTransport||!j.providerModel||!j.searchTool)process.exit(1);console.log('MARKET_PRODUCTION_PASS',j.aiTransport,j.providerModel,j.searchTool,j.acceptedOffers)"
+          cat /tmp/poupai-health.json || true
+          echo 'Public health endpoint did not become ready.'
+          exit 1

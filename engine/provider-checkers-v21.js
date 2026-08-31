@@ -70,7 +70,6 @@ export function validateAvailabilityRequest(input = {}) {
   if (!cep) issues.push({ field: 'cep', code: 'INVALID_CEP', message: 'Informe um CEP válido com 8 dígitos.' });
   if (!number) issues.push({ field: 'number', code: 'MISSING_NUMBER', message: 'Informe o número do imóvel ou S/N.' });
   if (!providers.length) issues.push({ field: 'providers', code: 'NO_SUPPORTED_PROVIDER', message: 'Nenhuma operadora suportada foi informada.' });
-
   return { valid: issues.length === 0, address: { cep, number }, providers, issues };
 }
 
@@ -179,6 +178,8 @@ export function applyAvailabilityChecksToMarket(marketResult = {}, rawChecks = [
       return {
         ...offer,
         availabilityScope: 'address',
+        availabilityLevel: 'address_confirmed',
+        availabilityExact: true,
         availabilityConfirmed: true,
         availabilityReference: 'Endereço confirmado pelo checker oficial do Poupai',
         availabilityEvidence: check.evidence,
@@ -190,10 +191,20 @@ export function applyAvailabilityChecksToMarket(marketResult = {}, rawChecks = [
 
   const confirmedProviders = checks.filter((x) => x.canUpgradeMarketOffer).map((x) => x.provider);
   const unavailableProviders = checks.filter((x) => x.safeToExcludeProvider).map((x) => x.provider);
+  const exactAvailabilityCount = upgradedOffers.filter((x) => x.availabilityExact === true || x.availabilityConfirmed === true).length;
+  const officialSourceCount = upgradedOffers.filter((x) => x.sourceOfficial !== false).length;
 
   return {
     ...marketResult,
     offers: upgradedOffers,
+    quality: {
+      ...(marketResult.quality || {}),
+      totalOffers: upgradedOffers.length,
+      officialSourceCount,
+      exactAvailabilityCount,
+      hasExactAvailability: exactAvailabilityCount > 0,
+      safeForFinalDecision: exactAvailabilityCount > 0,
+    },
     availabilityChecks: checks,
     availabilitySummary: {
       confirmedProviders,

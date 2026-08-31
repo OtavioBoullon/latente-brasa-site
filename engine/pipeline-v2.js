@@ -26,8 +26,8 @@ export function runPoupaiV2({ extraction, marketResult, engineConfig = {} } = {}
       readerValidation,
       marketGate: gate,
       analysis: null,
-      finalDecision: 'MANTENHA',
-      message: gate.message,
+      finalDecision: null,
+      message: `${gate.message} Não há base suficiente para recomendar manter, trocar ou negociar.`,
     };
   }
 

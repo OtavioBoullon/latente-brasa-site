@@ -1,8 +1,8 @@
 import { fetchWithTimeout, withRetry } from './hardening-v22.js';
 
 export const POUPAI_GEMINI_CLIENT_VERSION = '2.6.0';
-export const DEFAULT_GEMINI_READER_MODEL = process.env.POUPAI_READER_MODEL || 'gemini-2.5-flash';
-export const DEFAULT_GEMINI_MARKET_MODEL = process.env.POUPAI_MARKET_MODEL || 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_READER_MODEL = process.env.POUPAI_GEMINI_READER_MODEL || 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MARKET_MODEL = process.env.POUPAI_GEMINI_MARKET_MODEL || 'gemini-2.5-flash';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 

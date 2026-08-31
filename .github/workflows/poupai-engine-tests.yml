@@ -6,7 +6,10 @@ on:
       - poupai-v4-full-public
     paths:
       - 'engine/**'
+      - 'api/**'
       - 'public/poupai-v4-full/**'
+      - 'package.json'
+      - 'vercel.json'
       - '.github/workflows/poupai-engine-tests.yml'
   workflow_dispatch:
 
@@ -20,6 +23,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Validate production API syntax
+        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js
+      - name: Build site
+        run: npm run build
       - name: Run V1 tests
         run: node engine/test/run-v1.mjs
       - name: Run V1.1 tests

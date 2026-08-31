@@ -5,11 +5,11 @@ import {
 } from '../engine/market-v23.js';
 import { marketDecisionGate } from '../engine/market-v2.js';
 import { hardenMarketResult } from '../engine/hardening-v22.js';
+import { extractRawOffersFromOfficialPagesV26 } from '../engine/official-market-fetch-v26.js';
 import {
-  extractRawOffersFromOfficialPagesV26,
-  fetchOfficialMarketPagesV26,
-  POUPAI_OFFICIAL_MARKET_FETCH_VERSION,
-} from '../engine/official-market-fetch-v26.js';
+  fetchOfficialMarketPagesFastV263,
+  POUPAI_OFFICIAL_MARKET_FAST_FETCH_VERSION,
+} from '../engine/official-market-fetch-fast-v263.js';
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
   try {
     const checkedAt = todayIso();
-    const sourceFetch = await fetchOfficialMarketPagesV26();
+    const sourceFetch = await fetchOfficialMarketPagesFastV263();
     if (!sourceFetch.pages.length) {
       return json(res, 502, {
         error: 'MARKET_OFFICIAL_SOURCES_UNAVAILABLE',
@@ -71,8 +71,8 @@ export default async function handler(req, res) {
     return json(res, 200, {
       market: `Poupai Market V${POUPAI_MARKET_V23_VERSION}`,
       hardeningVersion: market.hardening?.version || '2.2.0',
-      marketRulesVersion: '2.6.2-deterministic',
-      marketFetchVersion: POUPAI_OFFICIAL_MARKET_FETCH_VERSION,
+      marketRulesVersion: '2.6.3-deterministic',
+      marketFetchVersion: POUPAI_OFFICIAL_MARKET_FAST_FETCH_VERSION,
       aiTransport: 'none-deterministic-market',
       providerModel: null,
       searchTool: 'official_page_fetch',

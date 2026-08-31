@@ -25,7 +25,7 @@ const oldOleBill = {
   extras: [],
   confidence: { provider: 0.98, internetMonthlyPrice: 0.99, invoiceTotal: 0.99, speedMbps: 0.98, cep: 0.99, overall: 0.98 },
   evidence: {
-    provider: 'Empresa Catarinense de Tecnologia em Telecomunicações Ltda. / Olé',
+    provider: 'Olé Telecom',
     internetMonthlyPrice: 'Olé Banda Larga 5Mbps + Wi-Fi 79,90',
     invoiceTotal: 'Total 79,90',
     speedMbps: 'Olé Banda Larga 5Mbps + Wi-Fi',

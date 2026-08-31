@@ -5,30 +5,23 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-function oidcTokenFromRequest(req) {
-  const value = req?.headers?.['x-vercel-oidc-token'];
-  if (Array.isArray(value)) return value[0] || null;
-  return value || null;
-}
-
 export default function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
 
-  const gatewayKey = Boolean(process.env.AI_GATEWAY_API_KEY);
-  const oidc = Boolean(process.env.VERCEL_OIDC_TOKEN || oidcTokenFromRequest(req));
-  const authAvailable = gatewayKey || oidc;
+  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY);
 
-  return json(res, authAvailable ? 200 : 503, {
-    ok: authAvailable,
+  return json(res, geminiConfigured ? 200 : 503, {
+    ok: geminiConfigured,
     service: 'Poupai',
-    release: '2.5.2-production',
+    release: '2.6.0-gemini',
     environment: process.env.VERCEL_ENV || 'unknown',
     ai: {
-      gateway: 'Vercel AI Gateway',
-      authAvailable,
-      authMode: gatewayKey ? 'api_key' : oidc ? 'oidc' : 'missing',
-      readerModel: process.env.POUPAI_READER_MODEL || 'openai/gpt-5.6-terra',
-      marketModel: process.env.POUPAI_MARKET_MODEL || 'openai/gpt-5.6-sol',
+      provider: 'Google Gemini API',
+      authAvailable: geminiConfigured,
+      authMode: geminiConfigured ? 'api_key' : 'missing',
+      readerModel: process.env.POUPAI_GEMINI_READER_MODEL || 'gemini-2.5-flash',
+      marketModel: process.env.POUPAI_GEMINI_MARKET_MODEL || 'gemini-2.5-flash',
+      marketSearch: 'google_search',
     },
     endpoints: [
       '/api/read-bill',

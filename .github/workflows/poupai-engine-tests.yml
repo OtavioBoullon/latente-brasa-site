@@ -37,3 +37,5 @@ jobs:
         run: node engine/test/run-billing-baseline-v24.mjs
       - name: Run Public Real Bills V2.5 corpus
         run: node engine/test/run-public-bills-v25.mjs
+      - name: Run V2.5 live pipeline integration tests
+        run: node engine/test/run-pipeline-v25.mjs

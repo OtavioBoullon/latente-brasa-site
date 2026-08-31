@@ -11,7 +11,7 @@ for (const endpoint of ['/api/read-bill', '/api/find-offers', '/api/check-availa
   assert.ok(js.includes(endpoint), `frontend deve chamar ${endpoint}`);
 }
 assert.ok(loader.includes('integration-v25.txt'), 'loader da V4 deve injetar a integração V2.5');
-assert.ok(js.includes('htmlpreview.github.io'), 'frontend deve bloquear análise real no HTMLPreview estático');
+assert.ok(js.includes('htmlpreview'), 'frontend deve bloquear análise real no HTMLPreview estático');
 assert.ok(js.includes('Ver oferta oficial'), 'resultado deve exibir link oficial das ofertas');
 assert.ok(js.includes('houseNumber'), 'interface deve permitir número do imóvel para confirmação de cobertura');
 

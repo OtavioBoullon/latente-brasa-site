@@ -1,4 +1,4 @@
-import { gateway, generateText } from 'ai';
+import { createGateway, generateText } from 'ai';
 import {
   MARKET_SEARCH_INSTRUCTIONS_V23,
   MARKET_SEARCH_SCHEMA_V23,
@@ -42,6 +42,16 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function oidcTokenFromRequest(req) {
+  const value = req?.headers?.['x-vercel-oidc-token'];
+  if (Array.isArray(value)) return value[0] || null;
+  return value || null;
+}
+
+function gatewayToken(req) {
+  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || oidcTokenFromRequest(req) || null;
+}
+
 function parseJsonObject(text) {
   const raw = String(text || '').trim();
   if (!raw) throw new Error('A pesquisa não retornou dados estruturados.');
@@ -55,7 +65,7 @@ function parseJsonObject(text) {
   throw new Error('O Market não conseguiu produzir JSON válido.');
 }
 
-async function callMarketModel(location) {
+async function callMarketModel(location, token) {
   const checkedAt = todayIso();
   const locationText = [
     `CEP: ${location.cep}`,
@@ -63,15 +73,16 @@ async function callMarketModel(location) {
     location.state ? `Estado: ${location.state}` : null,
   ].filter(Boolean).join('\n');
   const schemaText = JSON.stringify(MARKET_SEARCH_SCHEMA_V23);
+  const runtimeGateway = createGateway({ apiKey: token });
 
   const result = await withRetry(async () => generateText({
-    model: DEFAULT_MODEL,
+    model: runtimeGateway(DEFAULT_MODEL),
     prompt: `${HARDENED_MARKET_INSTRUCTIONS}\n\nHoje é ${checkedAt}. Pesquise ofertas atuais de internet fixa residencial relevantes para:\n${locationText}\n\nPesquise somente nos domínios oficiais permitidos pela ferramenta. Procure também provedores regionais oficiais. Para cada oferta, traga a URL exata da página oficial que sustenta o preço.\n\nSCHEMA JSON OBRIGATÓRIO:\n${schemaText}`,
     tools: {
-      perplexity_search: gateway.tools.perplexitySearch({
+      perplexity_search: runtimeGateway.tools.perplexitySearch({
         maxResults: 16,
         maxTokens: 50000,
-        maxTokensPerPage: 2600,
+        maxTokensPerPage: 2048,
         country: 'BR',
         searchLanguageFilter: ['pt'],
         searchDomainFilter: OFFICIAL_PROVIDER_DOMAINS_V23,
@@ -91,7 +102,8 @@ export default async function handler(req, res) {
   const startedAt = Date.now();
   if (req.method !== 'POST') return json(res, 405, { error: 'METHOD_NOT_ALLOWED' });
 
-  if (!process.env.VERCEL_OIDC_TOKEN && !process.env.AI_GATEWAY_API_KEY) {
+  const token = gatewayToken(req);
+  if (!token) {
     return json(res, 503, {
       error: 'MARKET_NOT_CONFIGURED',
       message: 'A autenticação do Vercel AI Gateway não está disponível neste deploy.',
@@ -108,7 +120,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    const { result, checkedAt } = await callMarketModel(location);
+    const { result, checkedAt } = await callMarketModel(location, token);
     const raw = parseJsonObject(result.text);
     const normalized = normalizeMarketSearchV23(raw, location, { checkedAt });
     const market = hardenMarketResult(normalized, {

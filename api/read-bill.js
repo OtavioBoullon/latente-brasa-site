@@ -42,8 +42,14 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-function gatewayToken() {
-  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || null;
+function oidcTokenFromRequest(req) {
+  const value = req?.headers?.['x-vercel-oidc-token'];
+  if (Array.isArray(value)) return value[0] || null;
+  return value || null;
+}
+
+function gatewayToken(req) {
+  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || oidcTokenFromRequest(req) || null;
 }
 
 function readerContent({ filename, mimeType, base64 }) {
@@ -110,7 +116,7 @@ export default async function handler(req, res) {
   const startedAt = Date.now();
   if (req.method !== 'POST') return json(res, 405, { error: 'METHOD_NOT_ALLOWED' });
 
-  const token = gatewayToken();
+  const token = gatewayToken(req);
   if (!token) {
     return json(res, 503, {
       error: 'READER_NOT_CONFIGURED',
@@ -152,7 +158,7 @@ export default async function handler(req, res) {
     return json(res, 200, {
       reader: `Poupai Reader V${POUPAI_READER_VERSION}`,
       hardeningVersion: hardening.version,
-      readerRulesVersion: '2.5.1',
+      readerRulesVersion: '2.5.2',
       aiTransport: 'vercel-ai-gateway-oidc',
       providerModel: DEFAULT_MODEL,
       extraction: extracted,

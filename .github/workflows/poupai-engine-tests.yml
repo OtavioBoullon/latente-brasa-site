@@ -51,3 +51,26 @@ jobs:
         run: node engine/test/run-pipeline-v25.mjs
       - name: Validate V4 frontend integration script
         run: node engine/test/run-site-integration-v25.mjs
+      - name: Smoke test public Vercel + AI Gateway OIDC
+        env:
+          POUPAI_HEALTH_URL: https://latente-brasa-site-git-poupa-7d2e4d-pix-clube-premiums-projects.vercel.app/api/health
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            code=$(curl -L -sS -o /tmp/poupai-health.json -w '%{http_code}' "$POUPAI_HEALTH_URL" || true)
+            echo "attempt=$i http=$code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/poupai-health.json
+              node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-health.json','utf8'));if(j.ok!==true||j.ai?.authAvailable!==true)process.exit(1);console.log('PUBLIC_HEALTH_PASS',j.ai.authMode,j.release)"
+              exit 0
+            fi
+            if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+              cat /tmp/poupai-health.json || true
+              echo 'Deployment is protected and not publicly testable.'
+              exit 1
+            fi
+            sleep 5
+          done
+          cat /tmp/poupai-health.json || true
+          echo 'Public health endpoint did not become ready.'
+          exit 1

@@ -13,7 +13,7 @@ export default function handler(req, res) {
   return json(res, geminiConfigured ? 200 : 503, {
     ok: geminiConfigured,
     service: 'Poupai',
-    release: '2.6.3-cardless',
+    release: '2.6.4-cardless',
     environment: process.env.VERCEL_ENV || 'unknown',
     ai: {
       provider: 'Google Gemini API',

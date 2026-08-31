@@ -33,3 +33,5 @@ jobs:
         run: node engine/test/run-hardening-v22.mjs
       - name: Run Real Bill V2.3 tests
         run: node engine/test/run-real-bill-v23.mjs
+      - name: Run Billing Baseline V2.4 tests
+        run: node engine/test/run-billing-baseline-v24.mjs

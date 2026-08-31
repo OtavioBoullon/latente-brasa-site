@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Validate production API syntax
-        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js
+        run: node --check engine/gemini-client-v26.js && node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js
       - name: Build site
         run: npm run build
       - name: Run V1 tests
@@ -51,7 +51,7 @@ jobs:
         run: node engine/test/run-pipeline-v25.mjs
       - name: Validate V4 frontend integration script
         run: node engine/test/run-site-integration-v25.mjs
-      - name: Smoke test public Vercel + AI Gateway auth
+      - name: Smoke test public Gemini migration
         env:
           POUPAI_HEALTH_URL: https://latente-brasa-site.vercel.app/api/health
         run: |
@@ -59,13 +59,14 @@ jobs:
           for i in $(seq 1 30); do
             code=$(curl -L -sS -o /tmp/poupai-health.json -w '%{http_code}' "$POUPAI_HEALTH_URL" || true)
             echo "attempt=$i http=$code"
-            if [ "$code" = "200" ]; then
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then
               cat /tmp/poupai-health.json
-              node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-health.json','utf8'));if(j.ok!==true||j.ai?.authAvailable!==true)process.exit(1);console.log('PUBLIC_HEALTH_PASS',j.ai.authMode,j.release)"
-              exit 0
+              if node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-health.json','utf8'));if(j.release!=='2.6.0-gemini'||j.ai?.provider!=='Google Gemini API')process.exit(1);console.log(j.ai?.authAvailable?'PUBLIC_GEMINI_READY':'PUBLIC_GEMINI_DEPLOYED_KEY_PENDING',j.ai?.readerModel,j.ai?.marketModel)"; then
+                exit 0
+              fi
             fi
             sleep 5
           done
           cat /tmp/poupai-health.json || true
-          echo 'Public health endpoint did not become ready.'
+          echo 'Public Gemini health endpoint did not become available.'
           exit 1

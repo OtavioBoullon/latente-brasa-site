@@ -1,4 +1,4 @@
-export const POUPAI_REAL_BILL_VERSION = '2.3.0';
+export const POUPAI_REAL_BILL_VERSION = '2.4.0';
 
 function parseBrDate(value) {
   if (!value) return null;
@@ -89,7 +89,10 @@ export function auditBillFreshness(extraction = {}, options = {}) {
 export function structuredBillFromReader(extraction = {}) {
   const providerName = String(extraction.provider || '').trim() || null;
   const speedMbps = Number(extraction.speedMbps || 0) || null;
-  const currentMonthlyCost = Number(extraction.internetMonthlyPrice || 0) || null;
+  const internetLinePrice = Number(extraction.internetMonthlyPrice || 0) || null;
+  const comparisonMonthlyCost = Number(extraction.comparisonMonthlyCost || 0) || null;
+  const baselineUnsafe = extraction.billingBaseline?.safeForComparison === false;
+  const currentMonthlyCost = comparisonMonthlyCost ?? (baselineUnsafe ? null : internetLinePrice);
   const technology = extraction.technology || null;
   const techText = String(technology || '').toLowerCase();
   const technologyQuality = /ftth|100%.*fibra|fibra.*casa/.test(techText) ? 1
@@ -99,10 +102,14 @@ export function structuredBillFromReader(extraction = {}) {
           : /dsl|cobre/.test(techText) ? 0.3 : 0.55;
 
   const conf = extraction.confidence || {};
+  const baselineConfidence = Number(extraction.billingBaseline?.confidence || 0);
+  const effectiveCostConfidence = comparisonMonthlyCost
+    ? Math.max(Number(conf.internetMonthlyPrice || 0), baselineConfidence)
+    : Number(conf.internetMonthlyPrice || 0);
   const confidenceByField = {
     provider: { value: providerName, confidence: Number(conf.provider || 0) },
     invoiceTotal: { value: extraction.invoiceTotal ?? null, confidence: Number(conf.invoiceTotal || 0) },
-    currentMonthlyCost: { value: currentMonthlyCost, confidence: Number(conf.internetMonthlyPrice || 0) },
+    currentMonthlyCost: { value: currentMonthlyCost, confidence: effectiveCostConfidence },
     speedMbps: { value: speedMbps, confidence: Number(conf.speedMbps || 0) },
     cep: { value: extraction.cep || null, confidence: Number(conf.cep || 0) },
     technology: { value: technology, confidence: technology ? Math.max(0.7, Number(conf.overall || 0)) : 0 },
@@ -114,8 +121,11 @@ export function structuredBillFromReader(extraction = {}) {
     provider: providerName ? { id: providerName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: providerName } : null,
     planName: extraction.planName || null,
     invoiceTotal: Number(extraction.invoiceTotal || 0) || null,
+    internetLinePrice,
     currentMonthlyCost,
-    monthlyCostEstimated: extraction.internetPriceIsolated === false,
+    comparisonBaselineType: extraction.billingBaseline?.baselineType || 'internet_line_only',
+    billingBaseline: extraction.billingBaseline || null,
+    monthlyCostEstimated: extraction.internetPriceIsolated === false || baselineUnsafe,
     speedMbps,
     cep: extraction.cep || null,
     dueDate: extraction.dueDate || null,

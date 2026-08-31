@@ -148,7 +148,12 @@ function locationMatch(scope, reference, context) {
   const requestedCity = String(context?.city || '').trim().toLowerCase();
   const ref = String(reference || '').toLowerCase();
 
-  if (scope === 'address') return { level: 'address_confirmed', confidence: 1, exact: true };
+  if (scope === 'address') {
+    if (context?.addressConfirmationTrusted === true) {
+      return { level: 'address_confirmed', confidence: 1, exact: true };
+    }
+    return { level: 'address_claimed_untrusted', confidence: 0.5, exact: false };
+  }
   if (scope === 'cep') {
     const refCep = cepDigits(reference);
     const exact = Boolean(requestedCep && refCep && requestedCep === refCep);

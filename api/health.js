@@ -13,14 +13,15 @@ export default function handler(req, res) {
   return json(res, geminiConfigured ? 200 : 503, {
     ok: geminiConfigured,
     service: 'Poupai',
-    release: '2.6.2-gemini-cardless',
+    release: '2.6.3-cardless',
     environment: process.env.VERCEL_ENV || 'unknown',
     ai: {
       provider: 'Google Gemini API',
       authAvailable: geminiConfigured,
       authMode: geminiConfigured ? 'api_key' : 'missing',
       readerModel: process.env.POUPAI_GEMINI_READER_MODEL || 'gemini-3.6-flash',
-      marketModel: process.env.POUPAI_GEMINI_MARKET_MODEL || 'gemini-3.6-flash',
+      marketModel: null,
+      marketMode: 'deterministic',
       marketSearch: 'direct_official_page_fetch',
       billingRequiredByPoupai: false,
     },

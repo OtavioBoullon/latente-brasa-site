@@ -1,0 +1,53 @@
+name: Poupai Final Smoke V2.6.4
+
+on:
+  push:
+    branches: [poupai-v4-full-public]
+    paths: ['.github/workflows/poupai-final-smoke-v264.yml']
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health
+        run: |
+          set -e
+          code=$(curl -L -sS -o /tmp/health.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/health')
+          test "$code" = "200"
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/health.json'));if(j.release!=='2.6.4-cardless'||j.ai?.authAvailable!==true||j.ai?.readerModel!=='gemini-3.6-flash'||j.ai?.marketMode!=='deterministic')process.exit(1);console.log('HEALTH_PASS',j.release)"
+      - name: Market
+        run: |
+          set -e
+          printf '%s' '{"cep":"01001-000","city":"São Paulo","state":"SP"}' > /tmp/market-request.json
+          code=$(curl -L -sS --max-time 25 -H 'Content-Type: application/json' --data-binary @/tmp/market-request.json -o /tmp/market.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/find-offers')
+          test "$code" = "200"
+          node - <<'NODE'
+          const fs=require('fs');
+          const j=JSON.parse(fs.readFileSync('/tmp/market.json','utf8'));
+          if(j.aiTransport!=='none-deterministic-market'||j.providerModel!==null||j.searchTool!=='official_page_fetch'||!j.result) process.exit(1);
+          if((j.metrics?.acceptedOffers||0)<1) process.exit(1);
+          const offers=j.result.offers||[];
+          const falseBonus=offers.some(o=>o.provider==='TIM'&&o.speedMbps===200);
+          const falseNio=offers.some(o=>o.provider==='Nio'&&o.speedMbps===250);
+          if(falseBonus||falseNio) process.exit(1);
+          console.log('MARKET_PASS','latency='+j.metrics.latencyMs,'pages='+j.sourceFetch.fetched,'offers='+j.metrics.acceptedOffers,offers.slice(0,8).map(o=>o.provider+':'+o.speedMbps+'@'+o.priceMonthly).join(','));
+          NODE
+      - name: Pipeline
+        run: |
+          set -e
+          node - <<'NODE'
+          const fs=require('fs');
+          const market=JSON.parse(fs.readFileSync('/tmp/market.json','utf8'));
+          const extraction={documentType:'internet_bill',provider:'TIM',planName:'Internet Fibra 500 Mega',internetMonthlyPrice:99.99,invoiceTotal:99.99,speedMbps:500,technology:'Fibra',cep:'01001-000',city:'São Paulo',state:'SP',dueDate:'10/09/2026',billingPeriod:'agosto/2026',bundleDetected:false,internetPriceIsolated:true,contractMonths:null,loyaltyEndDate:null,promotion:{detected:false,description:null,discountAmount:null,promotionalPrice:null,regularPrice:null,remainingMonths:null,endDate:null},reajustment:{detected:false,description:null,previousPrice:null,newPrice:null,percentage:null},extras:[],confidence:{provider:1,internetMonthlyPrice:1,invoiceTotal:1,speedMbps:1,cep:1,overall:1},evidence:{provider:'TIM',internetMonthlyPrice:'Mensalidade: R$ 99,99',invoiceTotal:'Total a pagar: R$ 99,99',speedMbps:'Internet Fibra 500 Mega',cep:'CEP 01001-000',promotion:null,reajustment:null},warnings:[]};
+          fs.writeFileSync('/tmp/pipeline-request.json',JSON.stringify({extraction,marketResult:market.result,engineConfig:{}}));
+          NODE
+          code=$(curl -L -sS --max-time 20 -H 'Content-Type: application/json' --data-binary @/tmp/pipeline-request.json -o /tmp/pipeline.json -w '%{http_code}' 'https://latente-brasa-site.vercel.app/api/run-pipeline')
+          test "$code" = "200"
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/pipeline.json'));if(!j.pipeline||!j.analysis?.freeDiagnosis||!j.finalDecision)process.exit(1);console.log('PIPELINE_PASS',j.pipeline,'provisional='+j.provisionalDecision,'final='+j.finalDecision,'reason='+j.decisionReason)"
+      - name: Public site
+        run: |
+          set -e
+          code=$(curl -L -sS --max-time 20 -o /tmp/site.html -w '%{http_code}' 'https://latente-brasa-site.vercel.app/')
+          test "$code" = "200"
+          grep -q 'Poupai' /tmp/site.html
+          echo SITE_PASS

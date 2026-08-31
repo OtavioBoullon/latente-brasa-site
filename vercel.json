@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/poupai-v4-full/index.html",
+      "permanent": false
+    }
+  ],
+  "functions": {
+    "api/read-bill.js": { "maxDuration": 60 },
+    "api/find-offers.js": { "maxDuration": 60 },
+    "api/check-availability.js": { "maxDuration": 45 },
+    "api/run-pipeline.js": { "maxDuration": 30 }
+  }
+}

@@ -1,100 +1,117 @@
-# Poupai Engine — V2.2
+# Poupai Engine — V2.5
 
-Motor independente do HTML da Poupai V4. O Poupai analisa uma fatura de internet residencial, pesquisa alternativas oficiais, valida disponibilidade quando possível e só então decide entre **TROQUE**, **NEGOCIE**, **MANTENHA** ou **ANALISE_INCONCLUSIVA**.
+Motor independente do HTML da Poupai V4. O Poupai analisa uma fatura de internet residencial, determina o **custo mensal efetivo** do serviço, pesquisa alternativas oficiais, valida disponibilidade quando possível e só então decide entre **TROQUE**, **NEGOCIE**, **MANTENHA** ou **ANALISE_INCONCLUSIVA**.
 
 ## Fluxo atual
 
 ```text
 Fatura PDF/foto
-  -> Poupai Reader V2
-  -> Poupai Market V2
+  -> Poupai Reader V2 + regras de cobrança V2.5
+  -> Real Bill Guard V2.4
+  -> Billing Baseline V2.5
+  -> Poupai Market V2/V2.3
   -> Provider Checkers V2.1
   -> Hardening V2.2
-  -> Poupai Engine V1.1
+  -> Structured Engine
   -> TROQUE / NEGOCIE / MANTENHA / ANALISE_INCONCLUSIVA
 ```
 
+## O que mudou com faturas reais
+
+Os testes com faturas públicas reais revelaram estruturas que fixtures artificiais não cobriam bem:
+
+- preço cheio do plano + descontos recorrentes separados;
+- desconto por meio de pagamento;
+- SCM dividido contabilmente de SVA/locação/serviços digitais;
+- serviços portáveis como streaming;
+- combo com TV, telefone ou móvel;
+- multa, juros e débitos anteriores;
+- fatura que informa internet/fibra, mas não informa a velocidade;
+- operadoras regionais e nomes comerciais fora das grandes operadoras nacionais;
+- faturas antigas que não podem representar o plano atual.
+
+O Billing Baseline V2.5 resolve a base econômica antes de qualquer comparação. Assim, o motor não compara, por exemplo, um preço cheio antes dos descontos nem uma linha SCM artificialmente baixa quando a própria fatura mostra que o pacote recorrente é composto por SCM + SVA.
+
 ## Engine
 
-- Identifica operadora, plano, velocidade e preço.
+- Aceita operadoras nacionais e regionais vindas do Reader estruturado.
 - Calcula custo efetivo em 12 e 24 meses.
 - Considera promoção, preço pós-promoção, instalação, equipamento e fidelidade.
 - Compara preço, velocidade e tecnologia.
 - Calcula Poupai Score.
 - Gera diagnóstico e relatório.
 
-## Reader V2 + hardening V2.2
+## Reader V2 + regras V2.5
 
 `engine/reader-v2.js`, `engine/hardening-v22.js` e `api/read-bill.js`
 
 - Aceita PDF, JPG, PNG e WEBP.
 - Extrai a fatura para JSON estruturado.
-- Isola o preço da internet quando possível.
 - Detecta combo, extras, promoção, reajuste e fidelidade.
-- Usa confiança por campo e evidência curta.
-- Trata todo conteúdo do documento como dado não confiável e ignora instruções/prompt injection presentes na própria fatura.
-- Valida deterministicamente evidência de operadora, preço, velocidade e CEP.
-- Checa consistência matemática entre preço da internet, adicionais e total da fatura.
-- Evita devolver dados pessoais desnecessários.
-- Usa timeout e retry controlado.
-- Retorna métricas de latência e uso de tokens.
+- Trata todo conteúdo do documento como dado não confiável e ignora prompt injection.
+- Se houver preço cheio + desconto recorrente, orienta a extração do preço líquido atual e preserva o preço cheio na promoção.
+- Não incorpora multa, juros ou faturas anteriores ao custo recorrente.
+- Em divisões SCM/SVA, preserva os componentes para o Billing Baseline decidir.
+- Não inventa velocidade quando ela não aparece na fatura.
+- Usa confiança por campo, evidência curta, timeout e retry.
 
-## Market V2 + hardening V2.2
+## Real Bill Guard V2.4
 
-`engine/market-v2.js`, `engine/hardening-v22.js` e `api/find-offers.js`
+`engine/real-bill-v23.js`
+
+- Aceita o JSON estruturado do Reader sem depender de uma lista fixa de operadoras.
+- Verifica a idade da fatura.
+- Faturas antigas ou com data desconhecida não podem gerar comparação atual sem revisão.
+- O custo usado pelo Engine vem do Billing Baseline, não necessariamente da linha SCM impressa.
+
+## Billing Baseline V2.5
+
+`engine/billing-baseline-v25.js`
+
+- `discounted_internet_line`: usa o preço líquido atual quando a fatura demonstra preço cheio + desconto.
+- `provider_package_effective`: soma economicamente componentes recorrentes ligados ao provedor quando a fatura é uma divisão contábil SCM/SVA.
+- Exclui serviços portáveis da base quando eles podem continuar após a troca.
+- Exclui multa, juros, mora e débitos anteriores do custo recorrente.
+- Bloqueia combos de TV/telefone/móvel quando não é seguro assumir que os preços são independentes.
+- Bloqueia diferenças relevantes não classificadas.
+
+O caminho histórico `engine/billing-baseline-v24.js` aponta para a implementação V2.5 para manter compatibilidade com o pipeline existente.
+
+## Market
+
+`engine/market-v2.js`, `engine/market-v23.js`, `engine/hardening-v22.js` e `api/find-offers.js`
 
 - Pesquisa ofertas atuais em fontes oficiais.
+- Inclui grandes operadoras e provedores regionais oficiais já cadastrados.
 - Normaliza preço, velocidade, tecnologia e condições.
 - Guarda fonte, evidência e data de consulta.
 - Distingue oferta regional de disponibilidade confirmada no imóvel.
-- Rejeita oferta sem preço, velocidade, fonte oficial, evidência de preço, data de consulta ou confiança mínima.
-- Penaliza/oficialmente rejeita oferta antiga conforme os limites configurados.
-- Trata conteúdo das páginas como dado não confiável.
-- Usa timeout e retry controlado.
-- Retorna métricas de latência, tokens e quantidade de ofertas aceitas/rejeitadas.
+- Rejeita oferta sem preço, velocidade, fonte oficial, evidência de preço, data ou confiança mínima.
 
-## Provider Checkers V2.1 + hardening V2.2
+## Provider Checkers V2.1
 
 `engine/provider-checkers-v21.js` e `api/check-availability.js`
 
-- Consulta o fluxo oficial de cobertura usando navegador server-side.
-- Claro: tenta CEP + número.
-- TIM: tenta CEP + número e retorna `CONTACT_DATA_REQUIRED` se o fluxo exigir telefone.
-- Vivo: não envia nome/telefone sem consentimento explícito; quando autorizado, os dados são usados apenas durante a consulta e não são devolvidos na resposta.
-- Detecta CAPTCHA, mudança de formulário, exigência de contato e resultados indeterminados.
-- Só promove uma oferta para `address_confirmed` quando há fonte oficial, endereço submetido, evidência inequívoca e confiança mínima.
-- Uma confirmação oficial de indisponibilidade remove as ofertas daquela operadora da comparação.
-- Falhas e respostas indeterminadas recebem uma segunda tentativa controlada.
-- Registra tempo e número de tentativas por operadora.
+- Consulta fluxos oficiais de cobertura usando navegador server-side.
+- Detecta CAPTCHA, mudança de formulário e exigência de contato.
+- Só promove oferta para `address_confirmed` com evidência inequívoca.
+- Falhas/indeterminações recebem retry controlado.
 
-### Status possíveis dos checkers
+## Corpus de faturas públicas reais V2.5
 
-- `AVAILABLE`
-- `UNAVAILABLE`
-- `INDETERMINATE`
-- `CAPTCHA_REQUIRED`
-- `CONTACT_DATA_REQUIRED`
-- `CONSENT_REQUIRED`
-- `CHECK_FAILED`
+`engine/data/public-bills-corpus-v25.js`
 
-## Pipeline V2.2
+O corpus contém somente **estrutura de cobrança necessária aos testes**. Nomes, CPF/CNPJ de clientes, endereço completo, boleto, código de cliente e demais dados pessoais foram removidos.
 
-`engine/pipeline-v2.js`
+Casos cobertos atualmente incluem:
 
-O pipeline aplica o Hardening V2.2 antes de emitir uma recomendação final. Ele gera um **audit trace** técnico, sem dados pessoais desnecessários, mostrando quais campos foram usados, quais regras bloquearam algo, quantas ofertas foram aceitas/rejeitadas e qual regra levou à decisão.
-
-### Regra de segurança principal
-
-Ausência de oferta encontrada **não significa** que o plano atual seja bom.
-
-`MANTENHA` só pode ser emitido quando a fatura está validada, há disponibilidade exata e a cobertura de mercado atinge o mínimo definido pelo hardening. Caso contrário, o resultado é `ANALISE_INCONCLUSIVA`.
-
-## Dependências do browser server-side
-
-- `playwright-core`
-- `@sparticuz/chromium`
-
-Essas dependências são usadas apenas no backend; não entram no HTML da V4.
+- TIM Fibra 500M com preço cheio e dois descontos;
+- TIM Fibra 1 Giga com promoção;
+- Unifique 350 Mega com Wi-Fi Mesh + serviço digital compondo a fatura;
+- Brisanet SCM + serviços digitais com velocidade ausente;
+- Vivo Total com Fibra + móvel/streaming;
+- Nio Fibra sem velocidade explícita;
+- Vivo Total histórico com múltiplos produtos.
 
 ## Testes
 
@@ -105,9 +122,12 @@ node engine/test/run-reader-v2.mjs
 node engine/test/run-market-v2.mjs
 node engine/test/run-provider-checkers-v21.mjs
 node engine/test/run-hardening-v22.mjs
+node engine/test/run-real-bill-v23.mjs
+node engine/test/run-billing-baseline-v24.mjs
+node engine/test/run-public-bills-v25.mjs
 ```
 
-A suíte de hardening V2.2 contém **20 cenários de regressão**, incluindo evidência divergente, preço maior que a fatura, componentes acima do total, baixa confiança, prompt injection, CEP conflitante, oferta falsa, oferta antiga, oferta sem evidência, retry e bloqueio de `MANTENHA` com cobertura de mercado insuficiente.
+A suíte roda automaticamente no GitHub Actions. O corpus V2.5 é executado junto com todos os testes anteriores para impedir regressões.
 
 ## O que deliberadamente não existe nesta etapa
 
@@ -119,8 +139,4 @@ A suíte de hardening V2.2 contém **20 cenários de regressão**, incluindo evi
 
 ## Limite operacional importante
 
-Sites de operadoras podem mudar formulário, exigir CAPTCHA ou solicitar dados adicionais. Nesses casos o Poupai não infere cobertura. O checker retorna um status de revisão/consentimento e a oferta continua apenas como candidata até existir confirmação confiável.
-
-## Próxima validação
-
-O próximo passo não é adicionar mais lógica ao core. É rodar o fluxo com faturas reais e endereços reais, medir erros, latência/custo e ajustar regras com base nos casos que aparecerem no mundo real.
+Os fixtures de faturas públicas validam **regras de negócio e regressão**. Eles não substituem a execução real do `api/read-bill.js` contra cada PDF original, porque essa etapa depende da API de IA configurada no backend. Sites de operadoras também podem mudar formulários ou exigir CAPTCHA; nesses casos o Poupai não infere cobertura.

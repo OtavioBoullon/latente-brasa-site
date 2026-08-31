@@ -1,0 +1,35 @@
+name: Poupai Engine Tests
+
+on:
+  push:
+    branches:
+      - poupai-v4-full-public
+    paths:
+      - 'engine/**'
+      - '.github/workflows/poupai-engine-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run V1 tests
+        run: node engine/test/run-v1.mjs
+      - name: Run V1.1 tests
+        run: node engine/test/run-v11.mjs
+      - name: Run Reader V2 tests
+        run: node engine/test/run-reader-v2.mjs
+      - name: Run Market V2 tests
+        run: node engine/test/run-market-v2.mjs
+      - name: Run Provider Checker logic tests
+        run: node engine/test/run-provider-checkers-v21.mjs
+      - name: Run Hardening V2.2 tests
+        run: node engine/test/run-hardening-v22.mjs
+      - name: Run Real Bill V2.3 tests
+        run: node engine/test/run-real-bill-v23.mjs

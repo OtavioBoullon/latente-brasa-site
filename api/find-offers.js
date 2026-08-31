@@ -5,7 +5,7 @@ import {
 } from '../engine/market-v23.js';
 import { marketDecisionGate } from '../engine/market-v2.js';
 import { hardenMarketResult } from '../engine/hardening-v22.js';
-import { extractRawOffersFromOfficialPagesV26 } from '../engine/official-market-fetch-v26.js';
+import { extractRawOffersFromOfficialPagesV264, POUPAI_OFFICIAL_MARKET_PARSER_VERSION } from '../engine/official-market-parser-v264.js';
 import {
   fetchOfficialMarketPagesFastV263,
   POUPAI_OFFICIAL_MARKET_FAST_FETCH_VERSION,
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const raw = extractRawOffersFromOfficialPagesV26(sourceFetch, location);
+    const raw = extractRawOffersFromOfficialPagesV264(sourceFetch, location);
     const normalized = normalizeMarketSearchV23(raw, location, { checkedAt });
     const market = hardenMarketResult(normalized, {
       asOfDate: checkedAt,
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     return json(res, 200, {
       market: `Poupai Market V${POUPAI_MARKET_V23_VERSION}`,
       hardeningVersion: market.hardening?.version || '2.2.0',
-      marketRulesVersion: '2.6.3-deterministic',
+      marketRulesVersion: POUPAI_OFFICIAL_MARKET_PARSER_VERSION,
       marketFetchVersion: POUPAI_OFFICIAL_MARKET_FAST_FETCH_VERSION,
       aiTransport: 'none-deterministic-market',
       providerModel: null,

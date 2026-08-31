@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Validate production API syntax
-        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js
+        run: node --check api/read-bill.js && node --check api/find-offers.js && node --check api/check-availability.js && node --check api/run-pipeline.js && node --check api/health.js && node --check api/smoke-production.js
       - name: Build site
         run: npm run build
       - name: Run V1 tests
@@ -53,7 +53,7 @@ jobs:
         run: node engine/test/run-site-integration-v25.mjs
       - name: Smoke test public Vercel + AI Gateway OIDC
         env:
-          POUPAI_HEALTH_URL: https://latente-brasa-site-git-poupa-7d2e4d-pix-clube-premiums-projects.vercel.app/api/health
+          POUPAI_HEALTH_URL: https://latente-brasa-site.vercel.app/api/health
         run: |
           set -e
           for i in $(seq 1 30); do
@@ -63,11 +63,6 @@ jobs:
               cat /tmp/poupai-health.json
               node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('/tmp/poupai-health.json','utf8'));if(j.ok!==true||j.ai?.authAvailable!==true)process.exit(1);console.log('PUBLIC_HEALTH_PASS',j.ai.authMode,j.release)"
               exit 0
-            fi
-            if [ "$code" = "401" ] || [ "$code" = "403" ]; then
-              cat /tmp/poupai-health.json || true
-              echo 'Deployment is protected and not publicly testable.'
-              exit 1
             fi
             sleep 5
           done

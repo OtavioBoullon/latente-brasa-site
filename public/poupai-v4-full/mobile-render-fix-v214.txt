@@ -1,0 +1,24 @@
+(()=>{
+'use strict';
+const sync=()=>{
+  const inner=document.getElementById('p213Results');
+  if(!inner)return;
+  const host=inner.closest('.p213-results');
+  if(!host)return;
+  const shouldShow=inner.classList.contains('show');
+  host.classList.toggle('show',shouldShow);
+  host.style.display=shouldShow?'block':'';
+};
+const bind=()=>{
+  const inner=document.getElementById('p213Results');
+  if(!inner)return false;
+  sync();
+  new MutationObserver(sync).observe(inner,{attributes:true,attributeFilter:['class']});
+  return true;
+};
+if(!bind()){
+  const rootObs=new MutationObserver(()=>{if(bind())rootObs.disconnect()});
+  rootObs.observe(document.documentElement,{childList:true,subtree:true});
+}
+window.addEventListener('poupai:force-result-visible',sync);
+})();

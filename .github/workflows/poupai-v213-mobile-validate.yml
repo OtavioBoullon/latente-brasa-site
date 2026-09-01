@@ -1,0 +1,27 @@
+name: Poupai V2.13 Mobile Validation
+on:
+  push:
+    branches: [poupai-v4-full-public]
+    paths: ['.github/workflows/poupai-v213-mobile-validate.yml']
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Syntax
+        run: |
+          cp public/poupai-v4-full/integration-v213.txt /tmp/v213.js
+          cp public/poupai-v4-full/integration-v25.txt /tmp/loader.js
+          cp public/poupai-v4-full/paywall-v212.txt /tmp/paywall.js
+          node --check /tmp/v213.js
+          node --check /tmp/loader.js
+          node --check /tmp/paywall.js
+      - name: Assertions
+        run: |
+          grep -q "Mobile V2.13" public/poupai-v4-full/integration-v213.txt
+          grep -q "integration-v213.txt" public/poupai-v4-full/integration-v25.txt
+          grep -q "await post('/api/read-bill'" public/poupai-v4-full/integration-v213.txt
+          test "$(grep -o "await post('/api/read-bill'" public/poupai-v4-full/integration-v213.txt | wc -l)" -eq 1
+          grep -q "shell.innerHTML" public/poupai-v4-full/integration-v213.txt

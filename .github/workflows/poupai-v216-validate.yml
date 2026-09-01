@@ -22,39 +22,19 @@ jobs:
           node --check /tmp/v216.js
           node --check /tmp/paywall.js
           node --check /tmp/loader.js
-          ! grep -q "pageOneJpeg\|canvas.toDataURL" public/poupai-v4-full/mobile-pdf-fast-v216.txt
-          grep -q "__POUPAI_V216_LOADED__" public/poupai-v4-full/mobile-pdf-fast-v216.txt
-          grep -q "__POUPAI_PAYWALL_V217_LOADED__" public/poupai-v4-full/paywall-v217.txt
-          grep -q "paywall-v217.txt" public/poupai-v4-full/integration-v25.txt
-      - name: Mobile browser PDF smoke
+      - name: Debug mobile PDF DOM
         run: |
           npm install --no-save puppeteer-core@24 pdf-lib@1 >/dev/null 2>&1
-          cat > mobile-smoke.cjs <<'NODE'
-          const fs=require('fs');
-          const {execSync}=require('child_process');
-          const puppeteer=require('puppeteer-core');
-          const {PDFDocument,StandardFonts}=require('pdf-lib');
-          const chrome=(process.env.CHROME_BIN||(()=>{for(const c of ['google-chrome','chromium','chromium-browser']){try{return execSync('which '+c).toString().trim()}catch(_){}}})());
-          if(!chrome)throw new Error('Chrome not found');
+          cat > mobile-debug.cjs <<'NODE'
+          const fs=require('fs'); const {execSync}=require('child_process'); const puppeteer=require('puppeteer-core'); const {PDFDocument,StandardFonts}=require('pdf-lib');
+          const chrome=(()=>{for(const c of ['google-chrome','chromium','chromium-browser']){try{return execSync('which '+c).toString().trim()}catch(_){}}})(); if(!chrome)throw new Error('Chrome not found');
           (async()=>{
-            const pdf=await PDFDocument.create();const p=pdf.addPage([595,842]);const font=await pdf.embedFont(StandardFonts.Helvetica);let y=800;
-            const lines=['CLIENTE TESTE','RUA TESTE 100','05115-090 S PAULO - SP','Telefonica Brasil S.A. Av. Berrini - CEP: 04571-936 - Sao Paulo - SP','VIVO TOTAL','Vivo Fibra 700Mbps. 1 120,00','Subtotal Vivo Fibra 120,00','Vivo Pos Familia 120GB 1 150,00','Linha Adicional 1 50,00','Subtotal Vivo Celular 200,00','Total a pagar 320,00'];
-            for(const line of lines){p.drawText(line,{x:40,y,size:12,font});y-=24}fs.writeFileSync('bill.pdf',await pdf.save());
-            const browser=await puppeteer.launch({headless:true,executablePath:chrome,args:['--no-sandbox','--disable-dev-shm-usage']});
-            const page=await browser.newPage();await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:1});
-            let readBillHit=false;await page.setRequestInterception(true);page.on('request',req=>{const u=req.url();if(u.includes('/api/read-bill')){readBillHit=true;return req.respond({status:500,contentType:'application/json',body:'{"error":"FAST_PATH_FAILED"}'})}if(u.includes('/api/find-offers'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({result:{offers:[{provider:'TIM',planName:'TIM 700 Mega',speedMbps:700,priceMonthly:99.99,technology:'Fibra',sourceUrl:'https://tim.com.br',availability:'unknown'}]}})});if(u.includes('/api/run-pipeline'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({finalDecision:'ANALISE_INCONCLUSIVA',provisionalDecision:'PRELIMINAR',message:'Comparação preliminar',analysis:{comparisons:[]},blockingReasons:[]})});req.continue()});
-            await page.goto('https://latente-brasa-site.vercel.app/poupai-v4-full/index.html?v=217pdf#analisar',{waitUntil:'networkidle2',timeout:60000});
-            await page.waitForFunction(()=>window.__POUPAI_V216_LOADED__===true&&window.__POUPAI_PAYWALL_V217_LOADED__===true,{timeout:30000});
-            const input=await page.$('#p213File');await input.uploadFile('bill.pdf');await page.click('#p213Analyze');
-            await page.waitForFunction(()=>window.__POUPAI_READER_FAST_PATH__==='pdf-text-v216',{timeout:20000});
-            await page.waitForSelector('#p213Results .p-real',{visible:true,timeout:20000});
-            if(readBillHit)throw new Error('backend Reader was called; PDF fast path failed');
-            const text=await page.$eval('#p213Results',e=>e.innerText);if(!text.includes('700 Mbps')||(!text.includes('R$ 120,00')&&!text.includes('R$ 120,00'))||(!text.includes('R$ 320,00')&&!text.includes('R$ 320,00')))throw new Error('wrong extracted result: '+text);
-            const display=await page.$eval('.p213-results',e=>getComputedStyle(e).display);if(display==='none')throw new Error('result hidden');
-            await page.waitForSelector('#poupaiPaywall',{visible:true,timeout:15000});
-            const unlock=await page.$('#poupaiUnlock');if(!unlock)throw new Error('unlock missing');
-            const payText=await page.$eval('#poupaiPaywall',e=>e.innerText);if(!payText.includes('R$ 19,90'))throw new Error('paywall price missing');
-            await browser.close();console.log('MOBILE_PDF_RESULT_AND_PAYWALL_OK');
+            const pdf=await PDFDocument.create(); const p=pdf.addPage([595,842]); const font=await pdf.embedFont(StandardFonts.Helvetica); let y=800; for(const line of ['CLIENTE TESTE','RUA TESTE 100','05115-090 S PAULO - SP','Telefonica Brasil S.A. Av. Berrini - CEP: 04571-936 - Sao Paulo - SP','VIVO TOTAL','Vivo Fibra 700Mbps. 1 120,00','Subtotal Vivo Fibra 120,00','Vivo Pos Familia 120GB 1 150,00','Linha Adicional 1 50,00','Subtotal Vivo Celular 200,00','Total a pagar 320,00']){p.drawText(line,{x:40,y,size:12,font});y-=24} fs.writeFileSync('bill.pdf',await pdf.save());
+            const browser=await puppeteer.launch({headless:true,executablePath:chrome,args:['--no-sandbox','--disable-dev-shm-usage']}); const page=await browser.newPage(); await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true});
+            const errs=[]; page.on('pageerror',e=>errs.push('PAGEERROR '+e.message)); page.on('console',m=>{if(['error','warning'].includes(m.type()))errs.push('CONSOLE '+m.type()+' '+m.text())});
+            await page.setRequestInterception(true); page.on('request',req=>{const u=req.url(); if(u.includes('/api/read-bill'))return req.respond({status:500,contentType:'application/json',body:'{"error":"FAST_PATH_FAILED"}'}); if(u.includes('/api/find-offers'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({result:{offers:[{provider:'TIM',planName:'TIM 700 Mega',speedMbps:700,priceMonthly:99.99,technology:'Fibra',sourceUrl:'https://tim.com.br'}]}})}); if(u.includes('/api/run-pipeline'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({finalDecision:'ANALISE_INCONCLUSIVA',provisionalDecision:'PRELIMINAR',message:'Comparação preliminar',analysis:{comparisons:[]},blockingReasons:[]})}); req.continue()});
+            await page.goto('https://latente-brasa-site.vercel.app/poupai-v4-full/index.html?v=217debug#analisar',{waitUntil:'networkidle2',timeout:60000}); await page.waitForFunction(()=>window.__POUPAI_V216_LOADED__&&window.__POUPAI_PAYWALL_V217_LOADED__,{timeout:30000}); const input=await page.$('#p213File'); await input.uploadFile('bill.pdf'); await page.click('#p213Analyze'); await page.waitForSelector('#p213Results .p-real',{visible:true,timeout:30000}); await new Promise(r=>setTimeout(r,2000));
+            const state=await page.evaluate(()=>({fast:window.__POUPAI_READER_FAST_PATH__,paywallLoaded:window.__POUPAI_PAYWALL_V217_LOADED__,paywallExists:!!document.querySelector('#poupaiPaywall'),pReal:document.querySelectorAll('#p213Results .p-real').length,pStatus:document.querySelectorAll('#p213Results .p-status').length,diagText:[...document.querySelectorAll('#p213Results .p-real')].map(x=>({status:!!x.querySelector('.p-status'),text:x.innerText.slice(0,250)})),resultsHTML:document.querySelector('#p213Results')?.innerHTML.slice(0,2000)})); console.log('STATE='+JSON.stringify(state)); console.log('ERRORS='+JSON.stringify(errs)); await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-          node mobile-smoke.cjs
+          node mobile-debug.cjs

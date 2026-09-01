@@ -1,0 +1,47 @@
+(()=>{
+'use strict';
+const $=(s)=>document.querySelector(s), $$=(s)=>[...document.querySelectorAll(s)];
+const CHECKOUT_URL=String(window.POUPAI_CHECKOUT_URL||'').trim();
+const css=`
+.p-paywall{position:relative;overflow:hidden;margin-top:18px;border:1px solid #dbe5de;border-radius:24px;background:linear-gradient(180deg,#ffffff 0%,#f7fbf8 100%);box-shadow:0 18px 55px rgba(5,29,62,.08)}
+.p-paywall-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:22px 22px 14px}.p-paywall-head h4{font-size:21px!important;margin:3px 0 7px!important}.p-paywall-head p{max-width:700px}.p-paywall-kicker{font-size:10px;font-weight:950;letter-spacing:.12em;text-transform:uppercase;color:#16802d}.p-paywall-price{white-space:nowrap;text-align:right;background:#071f42;color:#fff;padding:12px 14px;border-radius:15px}.p-paywall-price b{display:block;font-size:23px;line-height:1}.p-paywall-price small{font-size:9px;opacity:.72}
+.p-paywall-value{margin:0 22px 14px;padding:12px 14px;border:1px solid #dce8df;background:#edf9ef;border-radius:14px;color:#176b2b;font-size:11px;font-weight:850}
+.p-paywall-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;padding:0 22px 22px}.p-paywall-preview,.p-paywall-side{border:1px solid #e1e8e3;border-radius:18px;background:#fff;padding:16px}.p-paywall-preview h5,.p-paywall-side h5{margin:0 0 12px;color:var(--navy);font-size:14px}
+.p-lockrow{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid #edf1ee}.p-lockrow:first-of-type{border-top:0}.p-lockicon{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#f1f5f2;font-size:12px}.p-lockcopy b{display:block;color:#102848;font-size:12px}.p-lockcopy span{display:block;color:#748496;font-size:10px;margin-top:2px}.p-locked-value{font-size:11px;font-weight:900;color:#6f7d8d;filter:blur(4px);user-select:none}
+.p-paywall-features{display:grid;gap:8px;margin-bottom:14px}.p-paywall-feature{display:flex;gap:8px;align-items:center;font-size:11px;color:#536579}.p-paywall-feature i{font-style:normal;width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#eaf8ed;color:#16802d;font-weight:950}
+.p-unlock{width:100%;border:0;border-radius:13px;padding:13px 14px;background:#20c63a;color:#06203b;font-weight:950;font-size:12px;cursor:pointer}.p-unlock:hover{filter:brightness(.97)}.p-paywall-guarantee{text-align:center;margin-top:8px;font-size:9px;color:#83909e}.p-paywall-note{margin-top:10px;padding:9px 10px;border-radius:11px;background:#fff7e6;color:#855e0a;font-size:9px;font-weight:750}
+.p-checkout-modal{position:fixed;inset:0;background:rgba(3,18,39,.58);z-index:99999;display:grid;place-items:center;padding:18px}.p-checkout-card{width:min(430px,100%);background:#fff;border-radius:22px;padding:22px;box-shadow:0 24px 80px rgba(0,0,0,.24)}.p-checkout-card h4{margin:0 0 7px;color:#071f42}.p-checkout-card p{margin:0 0 15px;color:#63758a;font-size:12px;line-height:1.5}.p-checkout-card button{width:100%;border:0;border-radius:12px;padding:12px;font-weight:900;cursor:pointer}.p-checkout-close{background:#eef3ef;color:#15304f}
+@media(max-width:800px){.p-paywall-head{flex-direction:column}.p-paywall-price{text-align:left}.p-paywall-grid{grid-template-columns:1fr}.p-lockrow{grid-template-columns:30px 1fr}.p-locked-value{display:none}}
+`;
+const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+function metric(label){const cards=$$('#results .p-real .p-kpi');for(const c of cards){const s=(c.querySelector('small')?.textContent||'').toLowerCase();if(s.includes(label.toLowerCase()))return c.querySelector('b')?.textContent?.trim()||null}return null}
+function showModal(){document.querySelector('.p-checkout-modal')?.remove();const m=document.createElement('div');m.className='p-checkout-modal';m.innerHTML=`<div class="p-checkout-card"><h4>Relatório completo — R$ 19,90</h4><p>A experiência de desbloqueio já está pronta, mas o checkout financeiro ainda não foi conectado. Assim que o link de pagamento for configurado, este botão redirecionará para a compra e o relatório será liberado após confirmação.</p><button class="p-checkout-close" type="button">Entendi</button></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('.p-checkout-close'))m.remove()})}
+function render(){
+ if($('#poupaiPaywall'))return;
+ const status=$$('#results .p-real .p-status');if(!status.length)return;
+ const anchor=status[status.length-1].closest('.p-real');if(!anchor)return;
+ const offerCount=$$('#results .p-offer').length;
+ const current=metric('internet atual')||metric('custo atual')||metric('internet recorrente')||'valor validado';
+ const save12=metric('economia anual bruta')||metric('economia 12m');
+ const save24=metric('economia 24m');
+ const preliminary=/preliminar/i.test(status[status.length-1].textContent||'');
+ const box=document.createElement('section');box.id='poupaiPaywall';box.className='p-real p-paywall';
+ box.innerHTML=`
+ <div class="p-paywall-head"><div><div class="p-paywall-kicker">Relatório Poupai completo</div><h4>Você já viu o diagnóstico. Agora veja exatamente o que fazer.</h4><p>O relatório pago transforma a análise em decisão: compara as melhores alternativas, calcula custo total, aponta riscos e monta um plano de negociação/troca.</p></div><div class="p-paywall-price"><b>R$ 19,90</b><small>pagamento único</small></div></div>
+ <div class="p-paywall-value">${offerCount?`${offerCount} oferta${offerCount===1?'':'s'} analisada${offerCount===1?'':'s'} nesta busca`: 'Análise concluída'}${save12?` • potencial mostrado no diagnóstico: ${save12}`:''}${preliminary?' • relatório também explica o risco do combo antes de qualquer troca':''}.</div>
+ <div class="p-paywall-grid">
+  <div class="p-paywall-preview"><h5>O que será desbloqueado</h5>
+   <div class="p-lockrow"><div class="p-lockicon">🔒</div><div class="p-lockcopy"><b>Ranking completo das melhores ofertas</b><span>Preço, velocidade, fonte, cobertura e equivalência.</span></div><div class="p-locked-value">Plano ideal • R$ 00,00</div></div>
+   <div class="p-lockrow"><div class="p-lockicon">🔒</div><div class="p-lockcopy"><b>Custo real em 12 e 24 meses</b><span>Promoções, fidelidade e diferença contra o custo atual.</span></div><div class="p-locked-value">R$ 0.000,00</div></div>
+   <div class="p-lockrow"><div class="p-lockicon">🔒</div><div class="p-lockcopy"><b>Impacto do combo e falsa economia</b><span>O que pode mudar em celular, adicionais e descontos.</span></div><div class="p-locked-value">Risco calculado</div></div>
+   <div class="p-lockrow"><div class="p-lockicon">🔒</div><div class="p-lockcopy"><b>Estratégia de negociação personalizada</b><span>Meta de preço, argumento e limite para aceitar proposta.</span></div><div class="p-locked-value">Meta R$ 00,00</div></div>
+   <div class="p-lockrow"><div class="p-lockicon">🔒</div><div class="p-lockcopy"><b>Plano de ação passo a passo</b><span>O que fazer primeiro, segundo e terceiro.</span></div><div class="p-locked-value">6 etapas</div></div>
+  </div>
+  <aside class="p-paywall-side"><h5>Seu relatório inclui</h5><div class="p-paywall-features"><div class="p-paywall-feature"><i>✓</i>Comparação auditável com fontes oficiais</div><div class="p-paywall-feature"><i>✓</i>Economia mensal, 12m e 24m</div><div class="p-paywall-feature"><i>✓</i>Riscos de fidelidade, combo e promoções</div><div class="p-paywall-feature"><i>✓</i>Roteiro para negociar com a operadora atual</div><div class="p-paywall-feature"><i>✓</i>Checklist antes de trocar de plano</div><div class="p-paywall-feature"><i>✓</i>Resumo pronto para salvar/imprimir</div></div><button class="p-unlock" id="poupaiUnlock" type="button">Desbloquear relatório completo — R$ 19,90</button><div class="p-paywall-guarantee">Pagamento único • sem assinatura</div>${!CHECKOUT_URL?'<div class="p-paywall-note">Checkout ainda não conectado. A tela de venda já está pronta para receber o link de pagamento.</div>':''}</aside>
+ </div>`;
+ anchor.insertAdjacentElement('afterend',box);
+ $('#poupaiUnlock')?.addEventListener('click',()=>{window.dispatchEvent(new CustomEvent('poupai:unlock-click',{detail:{price:19.90,current,offerCount,save12,save24,preliminary}}));if(CHECKOUT_URL){location.href=CHECKOUT_URL}else showModal()});
+}
+const obs=new MutationObserver(()=>render());obs.observe(document.documentElement,{subtree:true,childList:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',render);else render();
+})();

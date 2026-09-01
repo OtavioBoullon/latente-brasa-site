@@ -1,0 +1,29 @@
+name: Poupai Paywall V2.12 Validation
+
+on:
+  push:
+    branches: [poupai-v4-full-public]
+    paths: ['.github/workflows/poupai-paywall-v212-validate.yml']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Syntax check dynamic scripts
+        run: |
+          cp public/poupai-v4-full/integration-v210.txt /tmp/integration-v210.js
+          cp public/poupai-v4-full/paywall-v212.txt /tmp/paywall-v212.js
+          cp public/poupai-v4-full/integration-v25.txt /tmp/integration-loader.js
+          node --check /tmp/integration-v210.js
+          node --check /tmp/paywall-v212.js
+          node --check /tmp/integration-loader.js
+      - name: Assert paywall wiring
+        run: |
+          grep -q "paywall-v212.txt" public/poupai-v4-full/integration-v25.txt
+          grep -q "Desbloquear relatório" public/poupai-v4-full/paywall-v212.txt
+          grep -q "R$ 19,90" public/poupai-v4-full/paywall-v212.txt
+          grep -q "poupaiPaywall" public/poupai-v4-full/paywall-v212.txt

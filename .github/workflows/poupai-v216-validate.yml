@@ -31,7 +31,7 @@ jobs:
       - name: Mobile browser smoke
         run: |
           npm install --no-save puppeteer-core@24 >/dev/null 2>&1
-          cat > /tmp/mobile-smoke.cjs <<'NODE'
+          cat > mobile-smoke.cjs <<'NODE'
           const fs=require('fs');
           const {execSync}=require('child_process');
           const puppeteer=require('puppeteer-core');
@@ -54,18 +54,18 @@ jobs:
             await page.waitForSelector('.p213-live',{timeout:30000});
             const badge=await page.$eval('.p213-live',e=>e.textContent);
             if(!badge.includes('V2.16'))throw new Error('wrong badge: '+badge);
-            const png='/tmp/bill.png';fs.writeFileSync(png,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64'));
+            const png='bill.png';fs.writeFileSync(png,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64'));
             const input=await page.$('#p213File');await input.uploadFile(png);
             await page.click('#p213Analyze');
             await page.waitForSelector('#p213Results .p-real',{visible:true,timeout:20000});
             const hostDisplay=await page.$eval('.p213-results',e=>getComputedStyle(e).display);
             if(hostDisplay==='none')throw new Error('result host hidden');
             await page.waitForSelector('#poupaiPaywall',{visible:true,timeout:10000});
-            const unlock=await page.$('#poupaiUnlock');if(!unlock)throw new Error('unlock button missing');
+            if(!await page.$('#poupaiUnlock'))throw new Error('unlock button missing');
             const html=await page.content();
             if(/Simulação local|cenário demonstrativo/i.test(html))throw new Error('demo content leaked');
             await browser.close();
             console.log('MOBILE_BROWSER_SMOKE_OK');
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-          node /tmp/mobile-smoke.cjs
+          node mobile-smoke.cjs

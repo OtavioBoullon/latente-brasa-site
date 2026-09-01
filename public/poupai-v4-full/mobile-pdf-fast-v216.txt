@@ -12,7 +12,21 @@ function bytesFromB64(b64){const bin=atob(String(b64||''));const u=new Uint8Arra
 function brMoney(v){const s=String(v||'').trim();const normalized=s.includes(',')?s.replace(/\./g,'').replace(',','.'):s;const n=Number(normalized);return Number.isFinite(n)?Math.round(n*100)/100:null;}
 function firstMatch(text,patterns){for(const re of patterns){const m=text.match(re);if(m)return{value:m[1],full:m[0]}}return null;}
 function snippet(text,needle){const i=text.indexOf(needle);if(i<0)return String(needle||'').slice(0,220);return text.slice(Math.max(0,i-45),Math.min(text.length,i+needle.length+55)).replace(/\s+/g,' ').trim().slice(0,220);}
-function chooseCep(t){const all=[...t.matchAll(/(?:^|[^\d])(\d{5}-?\d{3})(?!\d)/g)].map(m=>m[1].replace(/\D/g,'')).filter(x=>x.length===8);const uniq=[...new Set(all)];if(uniq.length!==1)return null;return uniq[0].slice(0,5)+'-'+uniq[0].slice(5);}
+function chooseCep(t){
+  const raw=[...t.matchAll(/(?:^|[^\d])(\d{5}-?\d{3})(?!\d)/g)].map(m=>({digits:m[1].replace(/\D/g,''),index:Number(m.index||0)})).filter(x=>x.digits.length===8);
+  if(!raw.length)return null;
+  const seen=new Map();for(const x of raw){if(!seen.has(x.digits))seen.set(x.digits,x)}
+  let best=null,bestScore=-1e9;
+  for(const c of seen.values()){
+    const before=t.slice(Math.max(0,c.index-180),c.index).toLowerCase();
+    let score=0;
+    if(/rua|avenida|bairro|cliente|assinante|instala|2ª\s*via|2a\s*via/.test(before))score+=2;
+    if(/cnpj|matriz|i\.e\.|inscri[cç][aã]o estadual|telefonica brasil s\.?a|claro s\.?a|tim s\.?a/.test(before))score-=5;
+    if(c.index<t.length*.25)score+=1;
+    if(score>bestScore){bestScore=score;best=c}
+  }
+  return best?best.digits.slice(0,5)+'-'+best.digits.slice(5):null;
+}
 function parseText(text){
   const t=String(text||'').replace(/\s+/g,' ').trim();if(t.length<80)return null;
   const provider=/\bVivo\b|Telefonica Brasil/i.test(t)?'Vivo':/\bClaro\b|Claro S\.?A/i.test(t)?'Claro':/(^|\s)TIM(\s|$)|TIM S\.?A/i.test(t)?'TIM':/Brisanet/i.test(t)?'Brisanet':/Unifique/i.test(t)?'Unifique':/Desktop/i.test(t)?'Desktop':/(^|\s)Nio(\s|$)/i.test(t)?'Nio':null;

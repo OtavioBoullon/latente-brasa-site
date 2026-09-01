@@ -1,23 +1,26 @@
 (()=>{
 'use strict';
+const markVersion=()=>{const badge=document.querySelector('.p213-live');if(badge)badge.textContent='🔒 Análise real • Mobile V2.14'};
 const sync=()=>{
+  markVersion();
   const inner=document.getElementById('p213Results');
   if(!inner)return;
   const host=inner.closest('.p213-results');
   if(!host)return;
   const shouldShow=inner.classList.contains('show');
   host.classList.toggle('show',shouldShow);
-  host.style.display=shouldShow?'block':'';
+  host.style.display=shouldShow?'block':'none';
 };
 const bind=()=>{
   const inner=document.getElementById('p213Results');
   if(!inner)return false;
+  markVersion();
   sync();
   new MutationObserver(sync).observe(inner,{attributes:true,attributeFilter:['class']});
   return true;
 };
 if(!bind()){
-  const rootObs=new MutationObserver(()=>{if(bind())rootObs.disconnect()});
+  const rootObs=new MutationObserver(()=>{markVersion();if(bind())rootObs.disconnect()});
   rootObs.observe(document.documentElement,{childList:true,subtree:true});
 }
 window.addEventListener('poupai:force-result-visible',sync);

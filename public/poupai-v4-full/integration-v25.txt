@@ -11,7 +11,7 @@
   (async()=>{
     try{
       await load('integration-v210.txt');
-      await load('paywall-v211.txt');
+      await load('paywall-v212.txt');
     }catch(err){
       console.error('Poupai loader:',err);
       const t=document.querySelector('#toast');if(t){t.textContent='Não foi possível carregar a análise real. Atualize a página.';t.classList.add('show')}

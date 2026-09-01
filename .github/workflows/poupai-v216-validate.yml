@@ -1,0 +1,29 @@
+name: Poupai V2.16 Validation
+on:
+  push:
+    branches: [poupai-v4-full-public]
+    paths: ['.github/workflows/poupai-v216-validate.yml']
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Syntax
+        run: |
+          cp public/poupai-v4-full/integration-v213.txt /tmp/v213.js
+          cp public/poupai-v4-full/mobile-render-fix-v214.txt /tmp/v214.js
+          cp public/poupai-v4-full/mobile-pdf-fast-v216.txt /tmp/v216.js
+          cp public/poupai-v4-full/paywall-v212.txt /tmp/paywall.js
+          cp public/poupai-v4-full/integration-v25.txt /tmp/loader.js
+          node --check /tmp/v213.js
+          node --check /tmp/v214.js
+          node --check /tmp/v216.js
+          node --check /tmp/paywall.js
+          node --check /tmp/loader.js
+      - name: Safety assertions
+        run: |
+          ! grep -q "pageOneJpeg\|canvas.toDataURL" public/poupai-v4-full/mobile-pdf-fast-v216.txt
+          grep -q "PDF_TEXT_TIMEOUT" public/poupai-v4-full/mobile-pdf-fast-v216.txt
+          grep -q "return nativeFetch(input,init)" public/poupai-v4-full/mobile-pdf-fast-v216.txt

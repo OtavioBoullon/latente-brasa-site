@@ -1,4 +1,4 @@
-name: Poupai Main V2.7 Validation
+name: Poupai Main V2.8 Validation
 
 on:
   push:
@@ -23,8 +23,8 @@ jobs:
         run: |
           node --check api/read-bill.js
           node --check api/find-offers.js
-          cp public/poupai-v4-full/integration-v27.txt /tmp/poupai-integration-v27.js
-          node --check /tmp/poupai-integration-v27.js
+          cp public/poupai-v4-full/integration-v28.txt /tmp/poupai-integration-v28.js
+          node --check /tmp/poupai-integration-v28.js
       - name: Build
         run: npm run build
       - name: Deterministic regression

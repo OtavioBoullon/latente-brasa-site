@@ -10,7 +10,7 @@
   };
   (async()=>{
     try{
-      await load('integration-v210.txt');
+      await load('integration-v213.txt');
       await load('paywall-v212.txt');
     }catch(err){
       console.error('Poupai loader:',err);

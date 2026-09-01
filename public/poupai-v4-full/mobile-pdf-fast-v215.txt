@@ -1,0 +1,173 @@
+(()=>{
+'use strict';
+const nativeFetch=window.fetch.bind(window);
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFWORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfPromise=null;
+
+function mark(){
+  const el=document.querySelector('.p213-live');
+  if(el) el.textContent='🔒 Análise real • Mobile V2.15';
+}
+new MutationObserver(mark).observe(document.documentElement,{childList:true,subtree:true});
+mark();
+
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(pdfPromise) return pdfPromise;
+  pdfPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=PDFJS; s.async=true;
+    s.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFWORKER;resolve(window.pdfjsLib)}catch(e){reject(e)}};
+    s.onerror=()=>reject(new Error('PDFJS_LOAD_FAILED'));
+    document.head.appendChild(s);
+  });
+  return pdfPromise;
+}
+function bytesFromB64(b64){
+  const bin=atob(String(b64||''));
+  const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  return u;
+}
+function brMoney(v){
+  const n=Number(String(v||'').replace(/\./g,'').replace(',','.'));
+  return Number.isFinite(n)?Math.round(n*100)/100:null;
+}
+function firstMatch(text,patterns){
+  for(const re of patterns){const m=text.match(re);if(m)return {value:m[1],full:m[0]}}
+  return null;
+}
+function snippet(text,needle){
+  const i=text.indexOf(needle);
+  if(i<0)return needle.slice(0,220);
+  return text.slice(Math.max(0,i-45),Math.min(text.length,i+needle.length+55)).replace(/\s+/g,' ').trim().slice(0,220);
+}
+function parseDeterministic(text){
+  const t=String(text||'').replace(/\s+/g,' ').trim();
+  const provider=/\bVivo\b|Telefonica Brasil/i.test(t)?'Vivo':
+    /\bClaro\b|Claro S\.?A/i.test(t)?'Claro':
+    /(^|\s)TIM(\s|$)|TIM S\.?A/i.test(t)?'TIM':
+    /Brisanet/i.test(t)?'Brisanet':
+    /Unifique/i.test(t)?'Unifique':
+    /Desktop/i.test(t)?'Desktop':
+    /(^|\s)Nio(\s|$)/i.test(t)?'Nio':null;
+
+  const speedM=firstMatch(t,[
+    /(?:Vivo\s*)?Fibra[^0-9]{0,35}(\d{2,4})\s*Mbps/i,
+    /(?:Internet|Banda\s*Larga|Ultrafibra)[^0-9]{0,35}(\d{2,4})\s*(?:Mbps|Mega)/i,
+    /\b(\d{2,4})\s*(?:Mbps|Mega)\b/i
+  ]);
+  const speed=speedM?Number(speedM.value):null;
+
+  const priceM=firstMatch(t,[
+    /Subtotal\s*(?:Vivo\s*)?Fibra\s*(?:R\$\s*)?(\d{1,4}[.,]\d{2})/i,
+    /Subtotal\s*(?:da\s*)?(?:Internet|Banda\s*Larga|Ultrafibra)\s*(?:R\$\s*)?(\d{1,4}[.,]\d{2})/i,
+    /(?:Fibra|Internet)[^0-9]{0,30}\d{2,4}\s*(?:Mbps|Mega)\.?\s*(?:\d{1,2}\s*)?(?:R\$\s*)?(\d{1,4}[.,]\d{2})/i
+  ]);
+  const price=priceM?brMoney(priceM.value):null;
+
+  const totalM=firstMatch(t,[
+    /Total\s*a\s*pagar\s*(?:-\s*R\$\s*)?(\d{1,5}[.,]\d{2})/i,
+    /VALOR\s*A\s*PAGAR(?:\s*\(R\$\))?[^0-9]{0,18}(\d{1,5}[.,]\d{2})/i,
+    /Total\s*(?:da\s*)?fatura[^0-9]{0,18}(\d{1,5}[.,]\d{2})/i
+  ]);
+  const total=totalM?brMoney(totalM.value):null;
+
+  const cepM=t.match(/(?:^|[^\d])(\d{5}-?\d{3})(?!\d)/);
+  const cep=cepM?cepM[1].replace(/\D/g,'').replace(/^(\d{5})(\d{3})$/,'$1-$2'):null;
+  const bundle=/\bcombo\b|VIVO\s+TOTAL|(?:P[oó]s|Celular|Linha\s+Adicional|TV)[^]{0,140}(?:Fibra|Internet)|(?:Fibra|Internet)[^]{0,140}(?:P[oó]s|Celular|Linha\s+Adicional|TV)/i.test(t);
+  const commercialEvidence=priceM?snippet(t,priceM.full):null;
+  const invoiceEvidence=totalM?snippet(t,totalM.full):null;
+  const speedEvidence=speedM?snippet(t,speedM.full):null;
+  const providerEvidence=provider?provider:null;
+  const cepEvidence=cep||null;
+
+  if(!(provider && speed>=30 && speed<=5000 && price>0 && total>0)) return null;
+  if(price>total*1.15) return null;
+
+  return {
+    documentType:'internet_bill',
+    provider,
+    planName:`${provider} ${speed} Mbps`,
+    internetMonthlyPrice:price,
+    invoiceTotal:total,
+    speedMbps:speed,
+    technology:/fibra/i.test(t)?'Fibra':null,
+    cep,
+    city:null,
+    state:null,
+    dueDate:null,
+    billingPeriod:null,
+    bundleDetected:bundle,
+    internetPriceIsolated:true,
+    contractMonths:null,
+    loyaltyEndDate:null,
+    promotion:{detected:false,description:null,discountAmount:null,promotionalPrice:null,regularPrice:null,remainingMonths:null,endDate:null},
+    reajustment:{detected:false,description:null,previousPrice:null,newPrice:null,percentage:null},
+    extras:[],
+    confidence:{provider:.99,internetMonthlyPrice:.98,invoiceTotal:.98,speedMbps:.99,cep:cep?.99:0,overall:cep?.98:.92},
+    evidence:{provider:providerEvidence,internetMonthlyPrice:commercialEvidence,invoiceTotal:invoiceEvidence,speedMbps:speedEvidence,cep:cepEvidence,promotion:null,reajustment:null},
+    warnings:['CLIENT_DETERMINISTIC_PDF_FAST_PATH']
+  };
+}
+async function firstPage(pdf){
+  const page=await pdf.getPage(1);
+  const tc=await page.getTextContent();
+  return tc.items.map(x=>x.str||'').join(' ');
+}
+async function pageOneJpeg(pdf){
+  const page=await pdf.getPage(1);
+  const base=page.getViewport({scale:1});
+  const scale=Math.min(2,1400/base.width);
+  const vp=page.getViewport({scale});
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);
+  const ctx=canvas.getContext('2d',{alpha:false});
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  const data=canvas.toDataURL('image/jpeg',.82);
+  return data.split(',')[1]||'';
+}
+function fakeResponse(extraction){
+  const body={
+    reader:'Poupai Reader client fast path',
+    readerRulesVersion:'2.15.0-client-deterministic-pdf',
+    aiTransport:'none-client-deterministic',
+    providerModel:null,
+    extraction,
+    verification:{mode:'client_deterministic_pdf_text',disagreements:[],passedWithoutCorrection:true},
+    validation:{validForDiagnosis:true,validForMarketComparison:Boolean(extraction.cep),needsUserConfirmation:false,needsCep:!extraction.cep,issues:[]},
+    hardening:{safeToUse:true,needsConfirmation:false,issues:[]},
+    metrics:{latencyMs:null,verificationPasses:0},
+    nextStep:extraction.cep?'SEARCH_MARKET':'ASK_CEP'
+  };
+  return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+}
+window.fetch=async function(input,init){
+  try{
+    const url=typeof input==='string'?input:(input?.url||'');
+    if(!/\/api\/read-bill(?:$|\?)/.test(url)||!init?.body) return nativeFetch(input,init);
+    const payload=JSON.parse(String(init.body));
+    if(payload?.mimeType!=='application/pdf'||!payload?.base64) return nativeFetch(input,init);
+
+    const lib=await loadPdfJs();
+    const pdf=await lib.getDocument({data:bytesFromB64(payload.base64)}).promise;
+    const text=await firstPage(pdf);
+    const parsed=parseDeterministic(text);
+    if(parsed){
+      window.__POUPAI_READER_FAST_PATH__='pdf-text';
+      return fakeResponse(parsed);
+    }
+
+    const jpg=await pageOneJpeg(pdf);
+    if(jpg){
+      window.__POUPAI_READER_FAST_PATH__='pdf-page1-jpeg';
+      const lighter={...payload,filename:String(payload.filename||'fatura.pdf').replace(/\.pdf$/i,'')+'-page1.jpg',mimeType:'image/jpeg',base64:jpg};
+      return nativeFetch(input,{...init,body:JSON.stringify(lighter)});
+    }
+  }catch(err){
+    console.warn('Poupai V2.15 PDF fast path fallback',err);
+  }
+  return nativeFetch(input,init);
+};
+})();

@@ -1,9 +1,20 @@
 (()=>{
   'use strict';
   const nativeFetch=window.fetch.bind(window);
-  const src='https://raw.githubusercontent.com/OtavioBoullon/latente-brasa-site/main/public/poupai-v4-full/integration-v210.txt?cb='+Date.now();
-  nativeFetch(src,{cache:'no-store'})
-    .then(r=>{if(!r.ok)throw new Error('Falha ao carregar integração V2.10');return r.text()})
-    .then(js=>{const s=document.createElement('script');s.textContent=js;document.documentElement.appendChild(s)})
-    .catch(err=>{console.error('Poupai V2.10 loader:',err);const t=document.querySelector('#toast');if(t){t.textContent='Não foi possível carregar a análise real. Atualize a página.';t.classList.add('show')}});
+  const base='https://raw.githubusercontent.com/OtavioBoullon/latente-brasa-site/main/public/poupai-v4-full/';
+  const load=async(name)=>{
+    const r=await nativeFetch(base+name+'?cb='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('Falha ao carregar '+name);
+    const js=await r.text();
+    const s=document.createElement('script');s.textContent=js;document.documentElement.appendChild(s);
+  };
+  (async()=>{
+    try{
+      await load('integration-v210.txt');
+      await load('paywall-v211.txt');
+    }catch(err){
+      console.error('Poupai loader:',err);
+      const t=document.querySelector('#toast');if(t){t.textContent='Não foi possível carregar a análise real. Atualize a página.';t.classList.add('show')}
+    }
+  })();
 })();

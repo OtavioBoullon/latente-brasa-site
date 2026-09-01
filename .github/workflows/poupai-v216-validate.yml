@@ -27,3 +27,45 @@ jobs:
           ! grep -q "pageOneJpeg\|canvas.toDataURL" public/poupai-v4-full/mobile-pdf-fast-v216.txt
           grep -q "PDF_TEXT_TIMEOUT" public/poupai-v4-full/mobile-pdf-fast-v216.txt
           grep -q "return nativeFetch(input,init)" public/poupai-v4-full/mobile-pdf-fast-v216.txt
+          grep -q "mobile-pdf-fast-v216.txt" public/poupai-v4-full/integration-v25.txt
+      - name: Mobile browser smoke
+        run: |
+          npm install --no-save puppeteer-core@24 >/dev/null 2>&1
+          cat > /tmp/mobile-smoke.cjs <<'NODE'
+          const fs=require('fs');
+          const {execSync}=require('child_process');
+          const puppeteer=require('puppeteer-core');
+          const chrome=(process.env.CHROME_BIN||(()=>{for(const c of ['google-chrome','chromium','chromium-browser']){try{return execSync('which '+c).toString().trim()}catch(_){}}})());
+          if(!chrome)throw new Error('Chrome not found');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:chrome,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const page=await browser.newPage();
+            await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:1});
+            await page.setRequestInterception(true);
+            page.on('request',req=>{
+              const u=req.url();
+              if(u.includes('/api/read-bill')) return req.respond({status:200,contentType:'application/json',body:JSON.stringify({extraction:{documentType:'internet_bill',provider:'Vivo',planName:'Vivo Fibra 700 Mbps',internetMonthlyPrice:120,invoiceTotal:320,speedMbps:700,technology:'Fibra',cep:'05115-090',city:'São Paulo',state:'SP',dueDate:'08/03/2026',billingPeriod:'02/2026',bundleDetected:true,internetPriceIsolated:true,contractMonths:null,loyaltyEndDate:null,promotion:{detected:false,description:null,discountAmount:null,promotionalPrice:null,regularPrice:null,remainingMonths:null,endDate:null},reajustment:{detected:false,description:null,previousPrice:null,newPrice:null,percentage:null},extras:[],confidence:{provider:.99,internetMonthlyPrice:.99,invoiceTotal:.99,speedMbps:.99,cep:.99,overall:.99},evidence:{provider:'Vivo',internetMonthlyPrice:'Subtotal Vivo Fibra 120,00',invoiceTotal:'Total a pagar 320,00',speedMbps:'Vivo Fibra 700Mbps',cep:'05115-090',promotion:null,reajustment:null},warnings:[]},verification:{mode:'test',disagreements:[],passedWithoutCorrection:true},validation:{validForDiagnosis:true,validForMarketComparison:true,needsUserConfirmation:false,needsCep:false,issues:[]},hardening:{safeToUse:true,issues:[]},nextStep:'SEARCH_MARKET'})});
+              if(u.includes('/api/find-offers')) return req.respond({status:200,contentType:'application/json',body:JSON.stringify({result:{offers:[{provider:'TIM',planName:'TIM 700 Mega',speedMbps:700,priceMonthly:99.99,technology:'Fibra',sourceUrl:'https://tim.com.br',availability:'unknown'}]}})});
+              if(u.includes('/api/run-pipeline')) return req.respond({status:200,contentType:'application/json',body:JSON.stringify({finalDecision:'ANALISE_INCONCLUSIVA',provisionalDecision:'PRELIMINAR',message:'Comparação preliminar',analysis:{comparisons:[]},blockingReasons:[]})});
+              if(u.includes('/api/check-availability')) return req.respond({status:200,contentType:'application/json',body:JSON.stringify({updatedMarket:{offers:[]}})});
+              req.continue();
+            });
+            await page.goto('https://latente-brasa-site.vercel.app/poupai-v4-full/index.html?v=216#analisar',{waitUntil:'networkidle2',timeout:60000});
+            await page.waitForSelector('.p213-live',{timeout:30000});
+            const badge=await page.$eval('.p213-live',e=>e.textContent);
+            if(!badge.includes('V2.16'))throw new Error('wrong badge: '+badge);
+            const png='/tmp/bill.png';fs.writeFileSync(png,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64'));
+            const input=await page.$('#p213File');await input.uploadFile(png);
+            await page.click('#p213Analyze');
+            await page.waitForSelector('#p213Results .p-real',{visible:true,timeout:20000});
+            const hostDisplay=await page.$eval('.p213-results',e=>getComputedStyle(e).display);
+            if(hostDisplay==='none')throw new Error('result host hidden');
+            await page.waitForSelector('#poupaiPaywall',{visible:true,timeout:10000});
+            const unlock=await page.$('#poupaiUnlock');if(!unlock)throw new Error('unlock button missing');
+            const html=await page.content();
+            if(/Simulação local|cenário demonstrativo/i.test(html))throw new Error('demo content leaked');
+            await browser.close();
+            console.log('MOBILE_BROWSER_SMOKE_OK');
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          node /tmp/mobile-smoke.cjs

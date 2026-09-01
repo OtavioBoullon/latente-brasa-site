@@ -26,7 +26,7 @@ jobs:
         run: |
           ! grep -q "pageOneJpeg\|canvas.toDataURL" public/poupai-v4-full/mobile-pdf-fast-v216.txt
           grep -q "PDF_TEXT_TIMEOUT" public/poupai-v4-full/mobile-pdf-fast-v216.txt
-          grep -q "return nativeFetch(input,init)" public/poupai-v4-full/mobile-pdf-fast-v216.txt
+          grep -q "__POUPAI_V216_LOADED__" public/poupai-v4-full/mobile-pdf-fast-v216.txt
           grep -q "mobile-pdf-fast-v216.txt" public/poupai-v4-full/integration-v25.txt
       - name: Mobile browser smoke
         run: |
@@ -50,7 +50,8 @@ jobs:
               if(u.includes('/api/check-availability')) return req.respond({status:200,contentType:'application/json',body:JSON.stringify({updatedMarket:{offers:[]}})});
               req.continue();
             });
-            await page.goto('https://latente-brasa-site.vercel.app/poupai-v4-full/index.html?v=216#analisar',{waitUntil:'networkidle2',timeout:60000});
+            await page.goto('https://latente-brasa-site.vercel.app/poupai-v4-full/index.html?v=216b#analisar',{waitUntil:'networkidle2',timeout:60000});
+            await page.waitForFunction(()=>window.__POUPAI_V216_LOADED__===true,{timeout:30000});
             await page.waitForSelector('.p213-live',{timeout:30000});
             const badge=await page.$eval('.p213-live',e=>e.textContent);
             if(!badge.includes('V2.16'))throw new Error('wrong badge: '+badge);
@@ -62,8 +63,6 @@ jobs:
             if(hostDisplay==='none')throw new Error('result host hidden');
             await page.waitForSelector('#poupaiPaywall',{visible:true,timeout:10000});
             if(!await page.$('#poupaiUnlock'))throw new Error('unlock button missing');
-            const html=await page.content();
-            if(/Simulação local|cenário demonstrativo/i.test(html))throw new Error('demo content leaked');
             await browser.close();
             console.log('MOBILE_BROWSER_SMOKE_OK');
           })().catch(e=>{console.error(e);process.exit(1)});

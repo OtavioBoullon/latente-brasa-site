@@ -1,37 +1,9 @@
 (()=>{
   'use strict';
-
-  // Compatibility bridge: current production Reader does one AI read, so V2.9 calls it twice.
-  // A future Reader may already perform independent double-read server-side. In that case,
-  // cache the verified response for the immediate second identical request to avoid 4 AI calls.
   const nativeFetch=window.fetch.bind(window);
-  let verifiedReaderCache=null;
-  window.fetch=async(input,init)=>{
-    const url=typeof input==='string'?input:String(input?.url||'');
-    const isReader=/\/api\/read-bill(?:\?|$)/.test(url)&&String(init?.method||'GET').toUpperCase()==='POST';
-    if(isReader&&verifiedReaderCache&&init?.body===verifiedReaderCache.body){
-      const cached=verifiedReaderCache;
-      verifiedReaderCache=null;
-      return new Response(cached.text,{status:cached.status,statusText:cached.statusText,headers:cached.headers});
-    }
-    const response=await nativeFetch(input,init);
-    if(isReader&&response.ok){
-      try{
-        const clone=response.clone();
-        const text=await clone.text();
-        const data=JSON.parse(text);
-        const alreadyVerified=data?.verification?.mode==='independent_second_read'||/double-read/i.test(String(data?.readerRulesVersion||''));
-        if(alreadyVerified){
-          verifiedReaderCache={body:init?.body,text,status:response.status,statusText:response.statusText,headers:[...response.headers.entries()]};
-        }
-      }catch(_){verifiedReaderCache=null}
-    }
-    return response;
-  };
-
-  const src='https://raw.githubusercontent.com/OtavioBoullon/latente-brasa-site/main/public/poupai-v4-full/integration-v29.txt?cb='+Date.now();
+  const src='https://raw.githubusercontent.com/OtavioBoullon/latente-brasa-site/main/public/poupai-v4-full/integration-v210.txt?cb='+Date.now();
   nativeFetch(src,{cache:'no-store'})
-    .then(r=>{if(!r.ok)throw new Error('Falha ao carregar integração V2.9');return r.text()})
+    .then(r=>{if(!r.ok)throw new Error('Falha ao carregar integração V2.10');return r.text()})
     .then(js=>{const s=document.createElement('script');s.textContent=js;document.documentElement.appendChild(s)})
-    .catch(err=>{console.error('Poupai V2.9 loader:',err);const t=document.querySelector('#toast');if(t){t.textContent='Não foi possível carregar a análise real. Atualize a página.';t.classList.add('show')}});
+    .catch(err=>{console.error('Poupai V2.10 loader:',err);const t=document.querySelector('#toast');if(t){t.textContent='Não foi possível carregar a análise real. Atualize a página.';t.classList.add('show')}});
 })();

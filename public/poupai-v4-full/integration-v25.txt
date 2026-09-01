@@ -12,6 +12,7 @@
     try{
       await load('integration-v213.txt');
       await load('mobile-render-fix-v214.txt');
+      await load('mobile-pdf-fast-v215.txt');
       await load('paywall-v212.txt');
     }catch(err){
       console.error('Poupai loader:',err);

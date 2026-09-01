@@ -13,17 +13,23 @@ export default function handler(req, res) {
   return json(res, geminiConfigured ? 200 : 503, {
     ok: geminiConfigured,
     service: 'Poupai',
-    release: '2.6.4-cardless',
+    release: '2.8.0-real-only',
     environment: process.env.VERCEL_ENV || 'unknown',
     ai: {
       provider: 'Google Gemini API',
       authAvailable: geminiConfigured,
       authMode: geminiConfigured ? 'api_key' : 'missing',
       readerModel: process.env.POUPAI_GEMINI_READER_MODEL || 'gemini-3.6-flash',
+      readerVerification: 'independent_double_read',
       marketModel: null,
       marketMode: 'deterministic',
       marketSearch: 'direct_official_page_fetch',
       billingRequiredByPoupai: false,
+    },
+    ui: {
+      mode: 'real_only',
+      demoResultsDisabled: true,
+      integration: '2.8.0',
     },
     endpoints: [
       '/api/read-bill',

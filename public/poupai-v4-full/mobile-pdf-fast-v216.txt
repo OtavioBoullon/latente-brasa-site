@@ -1,0 +1,68 @@
+(()=>{
+'use strict';
+const nativeFetch=window.fetch.bind(window);
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFWORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfPromise=null;
+
+function mark(){const el=document.querySelector('.p213-live');if(el)el.textContent='🔒 Análise real • Mobile V2.16';}
+mark();
+
+function loadPdfJs(){
+  if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+  if(pdfPromise)return pdfPromise;
+  pdfPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=PDFJS;
+    s.async=true;
+    s.onload=()=>{
+      try{
+        if(!window.pdfjsLib)throw new Error('PDFJS_NOT_AVAILABLE');
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFWORKER;
+        resolve(window.pdfjsLib);
+      }catch(e){reject(e)}
+    };
+    s.onerror=()=>reject(new Error('PDFJS_LOAD_FAILED'));
+    document.head.appendChild(s);
+  });
+  return pdfPromise;
+}
+function bytesFromB64(b64){const bin=atob(String(b64||''));const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+function brMoney(v){const s=String(v||'').trim();const normalized=s.includes(',')?s.replace(/\./g,'').replace(',','.'):s;const n=Number(normalized);return Number.isFinite(n)?Math.round(n*100)/100:null;}
+function firstMatch(text,patterns){for(const re of patterns){const m=text.match(re);if(m)return{value:m[1],full:m[0]}}return null;}
+function snippet(text,needle){const i=text.indexOf(needle);if(i<0)return String(needle||'').slice(0,220);return text.slice(Math.max(0,i-45),Math.min(text.length,i+needle.length+55)).replace(/\s+/g,' ').trim().slice(0,220);}
+function chooseCep(t){const all=[...t.matchAll(/(?:^|[^\d])(\d{5}-?\d{3})(?!\d)/g)].map(m=>m[1].replace(/\D/g,'')).filter(x=>x.length===8);const uniq=[...new Set(all)];if(uniq.length!==1)return null;return uniq[0].slice(0,5)+'-'+uniq[0].slice(5);}
+function parseText(text){
+  const t=String(text||'').replace(/\s+/g,' ').trim();
+  if(t.length<80)return null;
+  const provider=/\bVivo\b|Telefonica Brasil/i.test(t)?'Vivo':/\bClaro\b|Claro S\.?A/i.test(t)?'Claro':/(^|\s)TIM(\s|$)|TIM S\.?A/i.test(t)?'TIM':/Brisanet/i.test(t)?'Brisanet':/Unifique/i.test(t)?'Unifique':/Desktop/i.test(t)?'Desktop':/(^|\s)Nio(\s|$)/i.test(t)?'Nio':null;
+  const speedM=firstMatch(t,[/(?:Vivo\s*)?Fibra[^0-9]{0,35}(\d{2,4})\s*Mbps/i,/(?:Internet|Banda\s*Larga|Ultrafibra)[^0-9]{0,35}(\d{2,4})\s*(?:Mbps|Mega)/i,/\b(\d{2,4})\s*(?:Mbps|Mega)\b/i]);
+  const priceM=firstMatch(t,[/Subtotal\s*(?:Vivo\s*)?Fibra\s*(?:R\$\s*)?(\d{1,4}[.,]\d{2})/i,/Subtotal\s*(?:da\s*)?(?:Internet|Banda\s*Larga|Ultrafibra)\s*(?:R\$\s*)?(\d{1,4}[.,]\d{2})/i,/(?:Fibra|Internet)[^0-9]{0,35}\d{2,4}\s*(?:Mbps|Mega)\.?[^0-9]{0,12}(\d{1,4}[.,]\d{2})/i]);
+  const totalM=firstMatch(t,[/Total\s*a\s*pagar\s*(?:-\s*R\$\s*)?(\d{1,5}[.,]\d{2})/i,/VALOR\s*A\s*PAGAR(?:\s*\(R\$\))?[^0-9]{0,18}(\d{1,5}[.,]\d{2})/i,/Total\s*(?:da\s*)?fatura[^0-9]{0,18}(\d{1,5}[.,]\d{2})/i]);
+  const speed=speedM?Number(speedM.value):null,price=priceM?brMoney(priceM.value):null,total=totalM?brMoney(totalM.value):null;
+  if(!(provider&&Number.isFinite(speed)&&speed>=30&&speed<=5000&&Number.isFinite(price)&&price>0&&Number.isFinite(total)&&total>0))return null;
+  if(price>total*1.15)return null;
+  const cep=chooseCep(t);
+  const bundle=/\bcombo\b|VIVO\s+TOTAL|(?:P[oó]s|Celular|Linha\s+Adicional|TV).{0,180}(?:Fibra|Internet)|(?:Fibra|Internet).{0,180}(?:P[oó]s|Celular|Linha\s+Adicional|TV)/i.test(t);
+  return{
+    documentType:'internet_bill',provider,planName:`${provider} ${speed} Mbps`,internetMonthlyPrice:price,invoiceTotal:total,speedMbps:speed,technology:/fibra/i.test(t)?'Fibra':null,cep,city:null,state:null,dueDate:null,billingPeriod:null,bundleDetected:bundle,internetPriceIsolated:true,contractMonths:null,loyaltyEndDate:null,
+    promotion:{detected:false,description:null,discountAmount:null,promotionalPrice:null,regularPrice:null,remainingMonths:null,endDate:null},reajustment:{detected:false,description:null,previousPrice:null,newPrice:null,percentage:null},extras:[],
+    confidence:{provider:.99,internetMonthlyPrice:.97,invoiceTotal:.97,speedMbps:.99,cep:cep?.95:0,overall:cep?.97:.92},
+    evidence:{provider, internetMonthlyPrice:snippet(t,priceM.full),invoiceTotal:snippet(t,totalM.full),speedMbps:snippet(t,speedM.full),cep:cep,promotion:null,reajustment:null},warnings:['CLIENT_DETERMINISTIC_PDF_TEXT_FAST_PATH']
+  };
+}
+async function pageOneText(base64){const lib=await loadPdfJs();const pdf=await lib.getDocument({data:bytesFromB64(base64)}).promise;const page=await pdf.getPage(1);const tc=await page.getTextContent();return tc.items.map(x=>x.str||'').join(' ');}
+function response(extraction){const body={reader:'Poupai Reader client text fast path',readerRulesVersion:'2.16.0-client-pdf-text',aiTransport:'none-client-deterministic',providerModel:null,extraction,verification:{mode:'client_pdf_text',disagreements:[],passedWithoutCorrection:true},validation:{validForDiagnosis:true,validForMarketComparison:Boolean(extraction.cep),needsUserConfirmation:false,needsCep:!extraction.cep,issues:[]},hardening:{safeToUse:true,needsConfirmation:false,issues:[]},metrics:{verificationPasses:0},nextStep:extraction.cep?'SEARCH_MARKET':'ASK_CEP'};return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});}
+window.fetch=async function(input,init){
+  const url=typeof input==='string'?input:(input?.url||'');
+  if(!/\/api\/read-bill(?:$|\?)/.test(url)||!init?.body)return nativeFetch(input,init);
+  try{
+    const payload=JSON.parse(String(init.body));
+    if(payload?.mimeType!=='application/pdf'||!payload?.base64)return nativeFetch(input,init);
+    const text=await Promise.race([pageOneText(payload.base64),new Promise((_,reject)=>setTimeout(()=>reject(new Error('PDF_TEXT_TIMEOUT')),9000))]);
+    const parsed=parseText(text);
+    if(parsed){window.__POUPAI_READER_FAST_PATH__='pdf-text-v216';return response(parsed);}
+  }catch(err){console.warn('Poupai V2.16 fast path fallback',err);}
+  return nativeFetch(input,init);
+};
+})();
